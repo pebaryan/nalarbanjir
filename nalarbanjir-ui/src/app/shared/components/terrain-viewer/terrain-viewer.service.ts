@@ -144,8 +144,9 @@ export class TerrainViewerService {
   ): void {
     this._removeMesh(id);
 
+    const bedR = bed ? this._resampleElev(bed, nx, ny) : null;
     const eta = depth.map((row, i) =>
-      row.map((h, j) => h > 0.001 ? (bed ? bed[i][j] : 0) + h : -9999),
+      row.map((h, j) => h > 0.001 ? (bedR ? (bedR[i]?.[j] ?? 0) : 0) + h : -9999),
     );
     const valid = eta.flat().filter(v => v > -9999);
     if (valid.length === 0) return;
@@ -157,9 +158,10 @@ export class TerrainViewerService {
     const mat  = new THREE.MeshLambertMaterial({
       vertexColors: true, transparent: true,
       opacity: cfg.opacity * 0.75, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
     });
     const mesh = this._addMesh(id, geom, mat, cfg);
-    mesh.position.y = 0.15;
+    mesh.position.y = 1.0;
   }
 
   setRiskLayer(
@@ -168,14 +170,16 @@ export class TerrainViewerService {
     elevation?: number[][] | null,
   ): void {
     this._removeMesh(id);
-    const base = elevation ?? risk.map(row => row.map(() => 0));
-    const geom = this._buildGeom(base, nx, ny, dx, dy, 0, 4, 'risk', false, risk);
-    const mat  = new THREE.MeshLambertMaterial({
+    const elevR = elevation ? this._resampleElev(elevation, nx, ny) : null;
+    const base  = elevR ?? risk.map(row => row.map(() => 0));
+    const geom  = this._buildGeom(base, nx, ny, dx, dy, 0, 4, 'risk', false, risk);
+    const mat   = new THREE.MeshLambertMaterial({
       vertexColors: true, transparent: true,
       opacity: cfg.opacity * 0.8, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     });
     const mesh = this._addMesh(id, geom, mat, cfg);
-    mesh.position.y = 0.3;
+    mesh.position.y = 2.0;
   }
 
   removeLayer(id: string): void {
@@ -427,6 +431,20 @@ export class TerrainViewerService {
     l.geometry.dispose();
     (l.material as THREE.Material).dispose();
     this.layerLines.delete(id);
+  }
+
+  /** Nearest-neighbour resample of a 2-D grid to (targetNx × targetNy). */
+  private _resampleElev(elev: number[][], targetNx: number, targetNy: number): number[][] {
+    const srcNx = elev.length;
+    const srcNy = elev[0]?.length ?? 0;
+    if (srcNx === targetNx && srcNy === targetNy) return elev;
+    return Array.from({ length: targetNx }, (_, i) => {
+      const si = Math.min(srcNx - 1, Math.floor(i * srcNx / targetNx));
+      return Array.from({ length: targetNy }, (_, j) => {
+        const sj = Math.min(srcNy - 1, Math.floor(j * srcNy / targetNy));
+        return elev[si]?.[sj] ?? 0;
+      });
+    });
   }
 
   private _buildGeom(

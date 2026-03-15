@@ -119,6 +119,15 @@ export class LayerApiService {
     return this.http.post<any>('/api/gis/upload', fd);
   }
 
+  getGisElevation(fileId: string, maxSize = 256): Observable<{
+    file_id: string;
+    nx: number; ny: number; dx: number; dy: number;
+    min_x: number; min_y: number; max_x: number; max_y: number;
+    elevation: number[][];
+  }> {
+    return this.http.get<any>(`/api/gis/elevation/${fileId}?max_size=${maxSize}`);
+  }
+
   getVectorGeoJSON(fileId: string): Observable<VectorGeoJSONResponse> {
     return this.http.get<VectorGeoJSONResponse>(`/api/gis/vector/${fileId}`);
   }

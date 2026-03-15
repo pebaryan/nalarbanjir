@@ -33,8 +33,9 @@ export class MapPage implements OnInit, OnDestroy {
   readonly simStore           = inject(SimulationStore);
   readonly layerStore         = inject(LayerStore);
 
-  // Track which vector file_ids we've already fetched (avoid re-fetching on every signal change)
+  // Track which file_ids we've already fetched (avoid re-fetching on every signal change)
   private readonly loadedVectors = new Set<string>();
+  private readonly loadedDems    = new Set<string>();
 
   // HUD panel visibility
   readonly showLayers     = signal(true);
@@ -60,6 +61,42 @@ export class MapPage implements OnInit, OnDestroy {
       for (const layer of layers) {
         this.svc.setLayerVisibility(layer.id, layer.visibility);
         this.svc.setLayerOpacity(layer.id, layer.opacity);
+
+        // Load DEM layers from uploaded GeoTIFF/ASC files
+        if (layer.type === 'dem'
+            && layer.data_ref && !layer.data_ref.startsWith('sim:')
+            && !this.loadedDems.has(layer.data_ref)) {
+          this.loadedDems.add(layer.data_ref);
+          this.layerApi.getGisElevation(layer.data_ref).subscribe({
+            next: grid => {
+              this.elevationGrid = grid.elevation;
+              const worldBounds = {
+                minX: grid.min_x, minY: grid.min_y,
+                maxX: grid.max_x, maxY: grid.max_y,
+              };
+              this.svc.setDemLayer(
+                layer.id,
+                { visibility: layer.visibility, opacity: layer.opacity,
+                  colormap: layer.style.colormap as any,
+                  rangeMin: layer.style.range_min, rangeMax: layer.style.range_max,
+                  color: layer.style.color },
+                grid.elevation, grid.nx, grid.ny, grid.dx, grid.dy,
+                worldBounds,
+              );
+              // Update layer metadata with real bounds
+              this.layerStore.upsertLocalLayer({
+                ...layer,
+                metadata: {
+                  ...layer.metadata,
+                  bounds: { min_x: grid.min_x, min_y: grid.min_y,
+                            max_x: grid.max_x, max_y: grid.max_y },
+                  resolution: [grid.dx, grid.dy],
+                },
+              });
+            },
+            error: () => {},
+          });
+        }
 
         // Load vector / building layers from backend when they first appear
         const isGeoLayer = (layer.type === 'vector' || layer.type === 'channel' || layer.type === 'building');

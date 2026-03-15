@@ -537,6 +537,68 @@ async def get_vector_geojson(file_id: str, request: Request) -> JSONResponse:
     })
 
 
+# ── elevation grid (for Three.js DEM rendering) ───────────────────────────────
+
+@router.get("/elevation/{file_id}")
+async def get_elevation_grid(
+    file_id: str,
+    request: Request,
+    max_size: int = Query(256, ge=16, le=1024, description="Max grid dimension after downsampling"),
+) -> JSONResponse:
+    """
+    Return the elevation grid of an uploaded DTM, downsampled to ≤ max_size×max_size.
+
+    Response format matches /api/terrain/mesh:
+      { nx, ny, dx, dy, min_x, min_y, max_x, max_y, elevation: number[][] }
+
+    elevation[i][j] = elevation at scene x = i*dx, z = j*dy  (nx outer, ny inner).
+    """
+    import numpy as np
+
+    gis = _gis(request)
+    if file_id not in gis:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    stored = gis[file_id]
+    if stored["type"] != "dtm":
+        raise HTTPException(status_code=400, detail="File is not a raster DTM")
+
+    dtm = stored["data"]
+    elev = dtm.elevation_data  # shape (ny, nx) — standard raster (rows first)
+
+    raw_ny, raw_nx = elev.shape
+
+    # Downsample so the larger dimension ≤ max_size
+    stride = max(1, max(raw_nx, raw_ny) // max_size)
+    elev_ds = elev[::stride, ::stride]          # still (ny_ds, nx_ds)
+    ny_ds, nx_ds = elev_ds.shape
+
+    dx = dtm.resolution[0] * stride
+    dy = dtm.resolution[1] * stride
+
+    # Replace nodata with the mean of valid cells
+    nodata = dtm.nodata_value
+    valid  = elev_ds[elev_ds != nodata]
+    fill   = float(valid.mean()) if len(valid) > 0 else 0.0
+    elev_clean = np.where(elev_ds == nodata, fill, elev_ds).astype(float)
+
+    # Transpose to (nx_ds, ny_ds) so elevation[i][j] = elev at col i, row j
+    elev_t = elev_clean.T  # shape (nx_ds, ny_ds)
+
+    return JSONResponse(content={
+        "file_id": file_id,
+        "nx":  nx_ds,
+        "ny":  ny_ds,
+        "dx":  dx,
+        "dy":  dy,
+        "min_x": float(dtm.bounds.min_x),
+        "min_y": float(dtm.bounds.min_y),
+        "max_x": float(dtm.bounds.max_x),
+        "max_y": float(dtm.bounds.max_y),
+        "elevation": elev_t.tolist(),
+    })
+
+
 # ── buildings (CityGML) ───────────────────────────────────────────────────────
 
 @router.get("/buildings/{file_id}")

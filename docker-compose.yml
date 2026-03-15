@@ -1,0 +1,85 @@
+# Flood Prediction World Model - Docker Compose Configuration
+# Multi-container setup for web-based frontend and backend computation
+
+version: '3.8'
+
+services:
+  # Main Application Service
+  flood-world:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flood-prediction-world
+    ports:
+      - "8000:8000"  # Backend API
+      - "8080:8080"  # Frontend Web Interface
+    volumes:
+      - ./data:/app/data:rw
+      - ./logs:/app/logs:rw
+      - ./output:/app/output:rw
+    environment:
+      - PYTHONPATH=/app
+      - APP_ENV=production
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - flood-network
+
+  # Frontend Service (Web-based Visualization)
+  frontend:
+    image: nginx:alpine
+    container_name: flood-world-frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/static:/usr/share/nginx/html:ro
+      - ./frontend/templates:/usr/share/nginx/html/templates:ro
+    depends_on:
+      - flood-world
+    restart: unless-stopped
+    networks:
+      - flood-network
+
+  # ML Training Service (Optional - for model training)
+  ml-training:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flood-world-ml-training
+    command: python scripts/run_training.py --config config/model_config.yaml
+    volumes:
+      - ./data:/app/data:rw
+      - ./logs:/app/logs:rw
+      - ./output:/app/output:rw
+    environment:
+      - PYTHONPATH=/app
+      - ML_MODE=training
+    depends_on:
+      - flood-world
+    restart: unless-stopped
+    networks:
+      - flood-network
+
+networks:
+  flood-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Volume configuration for persistent data
+volumes:
+  data:
+    driver: local
+  logs:
+    driver: local
+  output:
+    driver: local

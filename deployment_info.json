@@ -1,0 +1,49 @@
+{
+  "network": {
+    "hostname": "mi25",
+    "ip_addresses": [],
+    "docker_version": "29.3.0"
+  },
+  "project": {
+    "source_files": [
+      "src/server.py",
+      "src/physics/__init__.py",
+      "src/physics/shallow_water.py",
+      "src/physics/terrain.py",
+      "src/ml/__init__.py",
+      "src/ml/model.py",
+      "src/visualization/__init__.py",
+      "src/visualization/renderer.py"
+    ],
+    "config_files": [
+      "config/model_config.yaml"
+    ],
+    "documentation": [
+      "README.md",
+      "requirements.txt",
+      "docker-compose.yml",
+      "DEVELOPMENT.md",
+      "PROJECT_SUMMARY.md"
+    ],
+    "scripts": [
+      "scripts/run_simulation.py"
+    ]
+  },
+  "access_info": {
+    "web_interface": {
+      "port": 8080,
+      "protocol": "http",
+      "description": "User-facing web dashboard"
+    },
+    "api_endpoint": {
+      "port": 8000,
+      "protocol": "http",
+      "description": "Backend API and WebSocket"
+    },
+    "docker_network": {
+      "network_name": "flood-network",
+      "subnet": "172.20.0.0/16",
+      "description": "Internal Docker network"
+    }
+  }
+}

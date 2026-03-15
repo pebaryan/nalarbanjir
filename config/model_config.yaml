@@ -1,0 +1,275 @@
+# Flood Prediction World Model - Configuration File
+# This configuration file defines all parameters for the simulation,
+# including physics, ML model, and visualization settings.
+
+# Application Information
+application:
+  name: "Flood Prediction World Model"
+  version: "1.0.0"
+  description: "A comprehensive world model for flood prediction based on shallow water wave equations"
+
+# Physics Engine Configuration
+physics:
+  # Gravitational acceleration (m/s²)
+  gravity: 9.81
+  
+  # Coriolis parameter (s⁻¹)
+  coriolis: 0.0
+  
+  # Bottom friction coefficient
+  bottom_friction: 0.02
+  
+  # Time step for simulation (seconds)
+  time_step: 1.0
+  
+  # Domain dimensions (meters)
+  domain_x: 10000.0
+  domain_y: 10000.0
+  
+  # Terrain characteristics
+  terrain:
+    amplitude: 2.0  # Terrain elevation amplitude (m)
+    wavelength: 2000.0  # Terrain pattern wavelength (m)
+  
+  # Initial conditions
+  initial_conditions:
+    water_depth: 1.0  # Initial average depth (m)
+    velocity: 0.2  # Initial velocity (m/s)
+    surface_elevation: 0.0  # Reference surface elevation (m)
+
+# Grid Configuration
+grid:
+  # Grid resolution
+  nx: 100  # Number of grid points in x direction
+  ny: 100  # Number of grid points in y direction
+  
+  # Batch size for ML processing
+  batch_size: 32
+  
+  # Adaptive refinement thresholds
+  refinement:
+    min_depth: 0.5  # Minimum water depth for refinement (m)
+    max_depth: 5.0  # Maximum water depth for refinement (m)
+    velocity_threshold: 1.0  # Velocity threshold for refinement (m/s)
+
+# Terrain Configuration
+terrain:
+  # Flood risk thresholds (meters)
+  flood_thresholds:
+    minor: 1.0
+    moderate: 2.0
+    major: 3.0
+    severe: 5.0
+  
+  # Land use classification
+  land_use:
+    types:
+      - name: "water"
+        permeability: 0.1
+        vulnerability: 5
+      - name: "urban"
+        permeability: 0.3
+        vulnerability: 3
+      - name: "agricultural"
+        permeability: 0.6
+        vulnerability: 2
+      - name: "forest"
+        permeability: 0.7
+        vulnerability: 3
+      - name: "wetland"
+        permeability: 0.8
+        vulnerability: 4
+      - name: "open_land"
+        permeability: 0.5
+        vulnerability: 2
+  
+  # Terrain features
+  features:
+    highlands:
+      elevation_min: 4.0
+      area_fraction: 0.25
+    lowlands:
+      elevation_max: 2.0
+      area_fraction: 0.35
+    floodplains:
+      elevation_range: [0.5, 3.0]
+      area_fraction: 0.40
+
+# Machine Learning Model Configuration
+ml:
+  # Model architecture
+  model_type: "flood_net"
+  
+  # Input and output configuration
+  input_features: 10
+  output_features: 5
+  
+  # Hidden layer dimensions
+  hidden_dims:
+    - 64
+    - 128
+    - 256
+  
+  # Training parameters
+  learning:
+    learning_rate: 0.001
+    dropout_rate: 0.1
+    batch_size: 32
+    epochs: 100
+  
+  # Prediction settings
+  prediction:
+    types:
+      - "flood_risk"
+      - "flow_dynamics"
+      - "water_quality"
+    horizon: 24  # Forecast horizon (hours)
+    confidence_threshold: 0.8
+
+# Visualization Configuration
+visualization:
+  # Rendering settings
+  resolution: "high"  # low, medium, high, ultra
+  update_frequency: 30  # Updates per second
+  
+  # Render modes
+  render_mode: "realtime"  # realtime, batch, hybrid
+  
+  # Color schemes
+  color_schemes:
+    natural:
+      water: "#3b82f6"
+      land: "#10b981"
+      urban: "#f59e0b"
+      risk:
+        low: "#10b981"
+        moderate: "#f59e0b"
+        high: "#ef4444"
+        severe: "#7f1d1d"
+  
+  # Visualization components
+  components:
+    water_surface:
+      enabled: true
+      render_style: "3d"
+    flow_vectors:
+      enabled: true
+      vector_density: 0.5
+    flood_zones:
+      enabled: true
+      highlight_active: true
+
+# Simulation Configuration
+simulation:
+  # Total simulation steps
+  total_steps: 1000
+  
+  # Step intervals
+  save_every: 100  # Save checkpoint every N steps
+  log_every: 10  # Log metrics every N steps
+  
+  # Simulation modes
+  modes:
+    - name: "comprehensive"
+      description: "Full simulation with all components"
+    - name: "focal"
+      description: "Focused simulation on specific areas"
+    - name: "regional"
+      description: "Regional-scale simulation"
+  
+  # Event triggers
+  events:
+    - type: "flood_alert"
+      threshold: 3.0
+      action: "activate_response"
+    - type: "flow_change"
+      threshold: 0.5
+      action: "update_routing"
+
+# API Configuration
+api:
+  # Server settings
+  host: "0.0.0.0"
+  port: 8000
+  
+  # WebSocket settings
+  websocket:
+    enabled: true
+    url: "/ws"
+    heartbeat_interval: 30
+  
+  # Endpoints
+  endpoints:
+    - path: "/api/simulate"
+      methods: ["POST"]
+    - path: "/api/state"
+      methods: ["GET"]
+    - path: "/api/terrain"
+      methods: ["GET"]
+    - path: "/api/predict"
+      methods: ["POST"]
+    - path: "/api/history"
+      methods: ["GET"]
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # Log files
+  files:
+    simulation: "logs/simulation.log"
+    errors: "logs/errors.log"
+    access: "logs/access.log"
+
+# Data Management
+data:
+  # Storage configuration
+  storage:
+    type: "hierarchical"
+    locations:
+      - name: "primary"
+        path: "data/primary"
+        retention: "30d"
+      - name: "archive"
+        path: "data/archive"
+        retention: "1y"
+  
+  # Data formats
+  formats:
+    - "json"
+    - "csv"
+    - "netcdf"
+
+# User Interface Settings
+ui:
+  # Theme settings
+  theme:
+    mode: "light"
+    colors:
+      primary: "#2563eb"
+      secondary: "#10b981"
+      accent: "#f59e0b"
+  
+  # Layout preferences
+  layout:
+    responsive: true
+    components:
+      - "dashboard"
+      - "simulation"
+      - "visualization"
+      - "analytics"
+
+# Performance Settings
+performance:
+  # Resource limits
+  limits:
+    max_memory: "4GB"
+    max_cpu: "80%"
+    max_connections: 1000
+  
+  # Optimization settings
+  optimization:
+    caching: true
+    load_balancing: true
+    auto_scaling: true

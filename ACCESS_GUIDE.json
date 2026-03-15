@@ -1,0 +1,30 @@
+{
+  "server_ip": "Auto-detected",
+  "services": {
+    "llama_cpp": {
+      "url": "http://SERVER_IP:8080",
+      "description": "AI Model Web Interface",
+      "status": "Running"
+    },
+    "flood_dashboard": {
+      "url": "http://SERVER_IP:3000",
+      "description": "Interactive Flood Visualization Dashboard",
+      "status": "Ready"
+    },
+    "flood_api": {
+      "url": "http://SERVER_IP:8000",
+      "description": "REST API for Data Processing",
+      "status": "Ready"
+    },
+    "websocket": {
+      "url": "ws://SERVER_IP:9000",
+      "description": "Real-time Data Streaming Service",
+      "status": "Ready"
+    }
+  },
+  "quick_start": {
+    "step1": "Get Server IP",
+    "step2": "Access Services",
+    "step3": "Monitor & Manage"
+  }
+}

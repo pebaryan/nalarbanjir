@@ -1,0 +1,608 @@
+/* Flood Prediction World Model - Main Styles */
+
+:root {
+    /* Color Palette */
+    --primary-color: #2563eb;
+    --primary-dark: #1e40af;
+    --primary-light: #3b82f6;
+    
+    --secondary-color: #10b981;
+    --secondary-dark: #059669;
+    --secondary-light: #34d399;
+    
+    --accent-color: #f59e0b;
+    --accent-dark: #d97706;
+    --accent-light: #fbbf24;
+    
+    /* Risk Colors */
+    --risk-low: #10b981;
+    --risk-moderate: #f59e0b;
+    --risk-high: #ef4444;
+    --risk-severe: #7f1d1d;
+    
+    /* Neutral Colors */
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --text-light: #9ca3af;
+    
+    --bg-primary: #ffffff;
+    --bg-secondary: #f3f4f6;
+    --bg-dark: #1f2937;
+    
+    /* Border & Shadow */
+    --border-color: #e5e7eb;
+    --border-radius: 8px;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    
+    /* Typography */
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+    
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-normal: 300ms ease;
+    --transition-slow: 500ms ease;
+}
+
+/* Reset & Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family);
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
+    line-height: 1.6;
+}
+
+/* Header Styles */
+.main-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+    padding: var(--spacing-md) var(--spacing-xl);
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.header-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.app-title {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.app-title .icon {
+    font-size: var(--font-size-xl);
+}
+
+.main-nav .nav-menu {
+    display: flex;
+    list-style: none;
+    gap: var(--spacing-md);
+}
+
+.nav-link {
+    color: white;
+    text-decoration: none;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius);
+    transition: all var(--transition-fast);
+}
+
+.nav-link:hover,
+.nav-link.active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--border-radius);
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.status-dot.operational {
+    background-color: #10b981;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* Button Styles */
+.btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--bg-secondary);
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    color: var(--text-primary);
+}
+
+.btn-icon:hover {
+    color: var(--primary-color);
+}
+
+.btn-control {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.btn-control:hover {
+    background-color: var(--primary-light);
+    color: white;
+}
+
+/* Main Content Layout */
+.main-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--spacing-xl);
+}
+
+.section {
+    display: none;
+    animation: fadeIn var(--transition-normal);
+}
+
+.section.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.section-header h2 {
+    font-size: var(--font-size-2xl);
+    color: var(--text-primary);
+}
+
+.section-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+/* Card Styles */
+.card {
+    background-color: var(--bg-primary);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    transition: all var(--transition-normal);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-primary));
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-header h3 {
+    font-size: var(--font-size-lg);
+    color: var(--text-primary);
+}
+
+.card-content {
+    padding: var(--spacing-lg);
+}
+
+.card-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+}
+
+.metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm);
+    background-color: var(--bg-secondary);
+    border-radius: var(--border-radius);
+}
+
+.metric-label {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.metric-value {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: var(--font-size-lg);
+}
+
+/* Visualization Canvas */
+.visualization-canvas {
+    width: 100%;
+    height: 300px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+}
+
+/* Flood Risk Visualization */
+.risk-levels {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+}
+
+.risk-level {
+    flex: 1;
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    transition: all var(--transition-fast);
+    cursor: pointer;
+}
+
+.risk-level:hover {
+    transform: scale(1.05);
+}
+
+.risk-level.low {
+    background-color: rgba(16, 185, 129, 0.1);
+    border: 2px solid var(--risk-low);
+}
+
+.risk-level.moderate {
+    background-color: rgba(245, 158, 11, 0.1);
+    border: 2px solid var(--risk-moderate);
+}
+
+.risk-level.high {
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 2px solid var(--risk-high);
+}
+
+.risk-level.severe {
+    background-color: rgba(127, 29, 29, 0.1);
+    border: 2px solid var(--risk-severe);
+}
+
+.level-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-bottom: var(--spacing-sm);
+}
+
+.level-label {
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Control Panel */
+.control-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.control-group {
+    padding: var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-radius: var(--border-radius);
+}
+
+.control-group h4 {
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+    font-size: var(--font-size-lg);
+}
+
+.control-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+/* Time Controls */
+.time-controls {
+    padding: var(--spacing-md);
+}
+
+.time-slider {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.time-slider input[type="range"] {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--primary-light);
+}
+
+.time-value {
+    font-weight: 600;
+    color: var(--primary-color);
+    min-width: 80px;
+    text-align: center;
+}
+
+/* Parameter Controls */
+.parameter-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.parameter-control {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm);
+}
+
+.parameter-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Form Styles */
+.form-row {
+    margin-bottom: var(--spacing-md);
+}
+
+.form-row label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.form-control {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-base);
+    transition: border-color var(--transition-fast);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Footer */
+.main-footer {
+    background-color: var(--bg-dark);
+    color: white;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    margin-top: var(--spacing-xl);
+}
+
+.footer-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.footer-links {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.footer-link {
+    color: white;
+    text-decoration: none;
+    padding: var(--spacing-sm) var(--spacing-md);
+    transition: color var(--transition-fast);
+}
+
+.footer-link:hover {
+    color: var(--accent-light);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+    
+    .main-nav .nav-menu {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+    }
+    
+    .footer-content {
+        flex-direction: column;
+        gap: var(--spacing-md);
+        text-align: center;
+    }
+}
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--primary-color);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Animation Classes */
+.fade-in {
+    animation: fadeIn var(--transition-normal);
+}
+
+.slide-in {
+    animation: slideIn var(--transition-normal);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}

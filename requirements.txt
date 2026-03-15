@@ -1,0 +1,34 @@
+# Flood Prediction World Model - Dependencies
+
+## Core Dependencies
+numpy>=1.24.0
+torch>=2.0.0
+opencv-python>=4.8.0
+matplotlib>=3.7.0
+scipy>=1.10.0
+
+## Web Framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+## Frontend (Web-based Visualization)
+websockets>=12.0
+pydantic>=2.4.0
+
+## Data Processing
+h5py>=3.9.0
+pandas>=2.0.0
+
+## Configuration and Logging
+pyyaml>=6.0
+python-json-logger>=2.0.0
+
+## Development and Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.11.0
+isort>=5.12.0
+
+## Docker and Deployment
+docker>=6.1.0

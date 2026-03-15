@@ -1,0 +1,52 @@
+# GIS and 3D Flood Simulation Dependencies
+
+# Core Web Framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+websockets>=12.0
+
+# GIS Data Processing
+gdal>=3.7.0
+rasterio>=1.3.8
+geopandas>=0.13.2
+pyproj>=3.6.0
+shapely>=2.0.1
+fiona>=1.9.4
+rtree>=1.0.1
+
+# 3D Mesh Processing
+pyvista>=0.41.0
+trimesh>=3.22.0
+numpy-stl>=3.0.0
+
+# Numerical Computing
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Machine Learning
+torch>=2.0.0
+
+# Data Processing
+pandas>=2.0.0
+h5py>=3.9.0
+pyyaml>=6.0
+
+# Visualization
+matplotlib>=3.7.0
+pillow>=10.0.0
+
+# Utilities
+python-json-logger>=2.0.0
+tqdm>=4.65.0
+aiofiles>=23.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.24.0
+
+# Development
+black>=23.7.0
+isort>=5.12.0
+flake8>=6.0.0

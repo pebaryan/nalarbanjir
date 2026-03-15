@@ -584,9 +584,12 @@ export class TerrainViewerService {
 
   private _pan(dxPx: number, dyPx: number): void {
     const s = this.orbit.radius * 0.0012;
+    // Camera right in XZ = (cos θ, −sin θ)
     this.orbit.targetX += dxPx * s * Math.cos(this.orbit.theta);
-    this.orbit.targetZ += dxPx * s * Math.sin(this.orbit.theta);
-    this.orbit.targetX -= dyPx * s * Math.sin(this.orbit.theta) * Math.cos(this.orbit.phi);
+    this.orbit.targetZ -= dxPx * s * Math.sin(this.orbit.theta);
+    // Screen-up projected to XZ = (−sin θ · cos φ, −cos θ · cos φ)
+    // Drag down (dyPx > 0) → move target in −screenUp direction
+    this.orbit.targetX += dyPx * s * Math.sin(this.orbit.theta) * Math.cos(this.orbit.phi);
     this.orbit.targetZ += dyPx * s * Math.cos(this.orbit.theta) * Math.cos(this.orbit.phi);
   }
 

@@ -33,9 +33,18 @@ export class MapPage implements OnInit, OnDestroy {
   readonly simStore           = inject(SimulationStore);
   readonly layerStore         = inject(LayerStore);
 
-  // Track which file_ids we've already fetched (avoid re-fetching on every signal change)
-  private readonly loadedVectors = new Set<string>();
-  private readonly loadedDems    = new Set<string>();
+  // Cache fetched data so style changes re-render without a new network request
+  private readonly elevationCache = new Map<string, {
+    elevation: number[][]; nx: number; ny: number;
+    dx: number; dy: number;
+    min_x: number; min_y: number; max_x: number; max_y: number;
+  }>();
+  private readonly vectorCache = new Map<string, {
+    geojson: any; bounds: { min_x: number; min_y: number; max_x: number; max_y: number };
+    isBuilding: boolean;
+  }>();
+  // Last rendered style key per layer id — re-render when it changes
+  private readonly styleKeys = new Map<string, string>();
 
   // HUD panel visibility
   readonly showLayers     = signal(true);
@@ -62,67 +71,96 @@ export class MapPage implements OnInit, OnDestroy {
         this.svc.setLayerVisibility(layer.id, layer.visibility);
         this.svc.setLayerOpacity(layer.id, layer.opacity);
 
-        // Load DEM layers from uploaded GeoTIFF/ASC files
-        if (layer.type === 'dem'
-            && layer.data_ref && !layer.data_ref.startsWith('sim:')
-            && !this.loadedDems.has(layer.data_ref)) {
-          this.loadedDems.add(layer.data_ref);
-          this.layerApi.getGisElevation(layer.data_ref).subscribe({
-            next: grid => {
-              this.elevationGrid = grid.elevation;
-              const worldBounds = {
-                minX: grid.min_x, minY: grid.min_y,
-                maxX: grid.max_x, maxY: grid.max_y,
-              };
+        const styleKey = `${layer.style.colormap}|${layer.style.range_min}|${layer.style.range_max}|${layer.style.color}`;
+        const styleChanged = this.styleKeys.get(layer.id) !== styleKey;
+
+        // ── DEM layers ──────────────────────────────────────────────
+        if (layer.type === 'dem' && layer.data_ref) {
+          const inCache = this.elevationCache.has(layer.data_ref);
+          const cached  = this.elevationCache.get(layer.data_ref);
+          if (inCache && cached) {
+            // Data ready — re-render only when style changed
+            if (styleChanged) {
+              this.styleKeys.set(layer.id, styleKey);
               this.svc.setDemLayer(
                 layer.id,
                 { visibility: layer.visibility, opacity: layer.opacity,
                   colormap: layer.style.colormap as any,
                   rangeMin: layer.style.range_min, rangeMax: layer.style.range_max,
                   color: layer.style.color },
-                grid.elevation, grid.nx, grid.ny, grid.dx, grid.dy,
-                worldBounds,
+                cached.elevation, cached.nx, cached.ny, cached.dx, cached.dy,
+                { minX: cached.min_x, minY: cached.min_y, maxX: cached.max_x, maxY: cached.max_y },
               );
-              // Update layer metadata with real bounds
-              this.layerStore.upsertLocalLayer({
-                ...layer,
-                metadata: {
-                  ...layer.metadata,
-                  bounds: { min_x: grid.min_x, min_y: grid.min_y,
-                            max_x: grid.max_x, max_y: grid.max_y },
-                  resolution: [grid.dx, grid.dy],
-                },
-              });
-            },
-            error: () => {},
-          });
+            }
+          } else if (!inCache && !layer.data_ref.startsWith('sim:')) {
+            // Not yet fetched — mark in-flight, then fetch
+            this.elevationCache.set(layer.data_ref, null as any);
+            this.layerApi.getGisElevation(layer.data_ref).subscribe({
+              next: grid => {
+                this.elevationCache.set(layer.data_ref, grid);
+                this.elevationGrid = grid.elevation;
+                this.styleKeys.set(layer.id, styleKey);
+                this.svc.setDemLayer(
+                  layer.id,
+                  { visibility: layer.visibility, opacity: layer.opacity,
+                    colormap: layer.style.colormap as any,
+                    rangeMin: layer.style.range_min, rangeMax: layer.style.range_max,
+                    color: layer.style.color },
+                  grid.elevation, grid.nx, grid.ny, grid.dx, grid.dy,
+                  { minX: grid.min_x, minY: grid.min_y, maxX: grid.max_x, maxY: grid.max_y },
+                );
+                this.layerStore.upsertLocalLayer({
+                  ...layer,
+                  metadata: {
+                    ...layer.metadata,
+                    bounds: { min_x: grid.min_x, min_y: grid.min_y,
+                              max_x: grid.max_x, max_y: grid.max_y },
+                    resolution: [grid.dx, grid.dy],
+                  },
+                });
+              },
+              error: () => { this.elevationCache.delete(layer.data_ref); },
+            });
+          }
         }
 
-        // Load vector / building layers from backend when they first appear
+        // ── Vector / building layers ─────────────────────────────────
         const isGeoLayer = (layer.type === 'vector' || layer.type === 'channel' || layer.type === 'building');
-        if (isGeoLayer
-            && layer.data_ref && !layer.data_ref.startsWith('sim:')
-            && !this.loadedVectors.has(layer.data_ref)) {
-          this.loadedVectors.add(layer.data_ref);
-
+        if (isGeoLayer && layer.data_ref && !layer.data_ref.startsWith('sim:')) {
+          const inCache = this.vectorCache.has(layer.data_ref);
+          const cached  = this.vectorCache.get(layer.data_ref);
           const layerCfg = {
-            visibility: layer.visibility,
-            opacity:    layer.opacity,
-            colormap:   layer.style.colormap,
-            rangeMin:   layer.style.range_min,
-            rangeMax:   layer.style.range_max,
-            color:      layer.style.color,
+            visibility: layer.visibility, opacity: layer.opacity,
+            colormap: layer.style.colormap, rangeMin: layer.style.range_min,
+            rangeMax: layer.style.range_max, color: layer.style.color,
           };
 
-          if (layer.type === 'building') {
-            this.layerApi.getBuildingsGeoJSON(layer.data_ref).subscribe({
-              next: res => this.svc.setBuildingLayer(layer.id, layerCfg, res.geojson, res.bounds),
-              error: () => {},
-            });
-          } else {
-            this.layerApi.getVectorGeoJSON(layer.data_ref).subscribe({
-              next: res => this.svc.setVectorLayer(layer.id, layerCfg, res.geojson, res.bounds),
-              error: () => {},
+          if (inCache && cached) {
+            if (styleChanged) {
+              this.styleKeys.set(layer.id, styleKey);
+              if (cached.isBuilding) {
+                this.svc.setBuildingLayer(layer.id, layerCfg, cached.geojson, cached.bounds);
+              } else {
+                this.svc.setVectorLayer(layer.id, layerCfg, cached.geojson, cached.bounds);
+              }
+            }
+          } else if (!inCache) {
+            this.vectorCache.set(layer.data_ref, null as any);
+            const isBuilding = layer.type === 'building';
+            const req$ = isBuilding
+              ? this.layerApi.getBuildingsGeoJSON(layer.data_ref)
+              : this.layerApi.getVectorGeoJSON(layer.data_ref);
+            req$.subscribe({
+              next: res => {
+                this.vectorCache.set(layer.data_ref, { geojson: res.geojson, bounds: res.bounds, isBuilding });
+                this.styleKeys.set(layer.id, styleKey);
+                if (isBuilding) {
+                  this.svc.setBuildingLayer(layer.id, layerCfg, res.geojson, res.bounds);
+                } else {
+                  this.svc.setVectorLayer(layer.id, layerCfg, res.geojson, res.bounds);
+                }
+              },
+              error: () => { this.vectorCache.delete(layer.data_ref); },
             });
           }
         }
@@ -139,6 +177,12 @@ export class MapPage implements OnInit, OnDestroy {
 
     this.api.getTerrainMesh().subscribe(mesh => {
       this.elevationGrid = mesh.elevation;
+      // Cache synthetic terrain so style-change re-renders work for it too
+      this.elevationCache.set('sim:terrain', {
+        elevation: mesh.elevation, nx: mesh.nx, ny: mesh.ny,
+        dx: mesh.dx, dy: mesh.dy,
+        min_x: 0, min_y: 0, max_x: mesh.nx * mesh.dx, max_y: mesh.ny * mesh.dy,
+      });
       const terrainLayer = {
         id: 'layer_terrain', name: 'Terrain DEM', type: 'dem' as const,
         visibility: true, opacity: 1.0, z_index: 0,

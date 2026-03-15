@@ -21,6 +21,8 @@ interface SimulationState {
   isWsConnected: boolean;
   stats: FloodStats | null;
   errorMessage: string | null;
+  /** Incremented each time the engine is freshly initialized (⚙ Initialize clicked). */
+  initCount: number;
 }
 
 const initialState: SimulationState = {
@@ -31,6 +33,7 @@ const initialState: SimulationState = {
   isWsConnected: false,
   stats: null,
   errorMessage: null,
+  initCount: 0,
 };
 
 export const SimulationStore = signalStore(
@@ -68,6 +71,9 @@ export const SimulationStore = signalStore(
     },
     resetState(): void {
       patchState(store, { ...initialState });
+    },
+    markInitialized(): void {
+      patchState(store, { initCount: store.initCount() + 1 });
     },
   })),
 );

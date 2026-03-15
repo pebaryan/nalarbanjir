@@ -31,10 +31,10 @@ export class SimulationPanel implements OnInit, OnDestroy {
   readonly stepN             = signal(10);
   readonly errorMsg          = signal('');
 
-  // Rainfall config
-  readonly showRainfall      = signal(false);
+  // Rainfall config — defaults tuned for visible POC with the demo valley terrain
+  readonly showRainfall      = signal(true);
   readonly rainfallPattern   = signal<RainfallPattern>('uniform');
-  readonly rainfallMmHr      = signal(10);    // mm/hr — converted to m/s on submit
+  readonly rainfallMmHr      = signal(80);    // mm/hr — converted to m/s on submit
   readonly rainfallDurMin    = signal(60);    // minutes — converted to s on submit
   readonly stormX            = signal(5000);  // meters, only for storm_cell
   readonly stormY            = signal(5000);
@@ -81,6 +81,7 @@ export class SimulationPanel implements OnInit, OnDestroy {
       next: res => {
         this.store.setMode(res.mode as SimulationMode);
         this.store.setStatus('idle');
+        this.store.markInitialized();
         this._ensureSimLayers();
       },
       error: err => this.errorMsg.set(err.error?.detail ?? 'Failed to initialize'),

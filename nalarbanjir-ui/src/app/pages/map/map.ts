@@ -45,6 +45,8 @@ export class MapPage implements OnInit, OnDestroy {
   }>();
   // Last rendered style key per layer id — re-render when it changes
   private readonly styleKeys = new Map<string, string>();
+  // IDs of layers currently present in the viewer scene
+  private readonly renderedIds = new Set<string>();
 
   // HUD panel visibility
   readonly showLayers     = signal(true);
@@ -65,8 +67,36 @@ export class MapPage implements OnInit, OnDestroy {
   readonly projectMsg     = signal('');
 
   constructor() {
+    // Re-fetch synthetic terrain mesh whenever the engine is re-initialized
+    // so the 3D viewer shows the bowl terrain (not the flat pre-init placeholder)
+    effect(() => {
+      const count = this.simStore.initCount();
+      if (count === 0) return;   // skip the initial value
+      this.api.getTerrainMesh().subscribe(mesh => {
+        this.elevationGrid = mesh.elevation;
+        this.elevationCache.set('sim:terrain', {
+          elevation: mesh.elevation, nx: mesh.nx, ny: mesh.ny,
+          dx: mesh.dx, dy: mesh.dy,
+          min_x: 0, min_y: 0, max_x: mesh.nx * mesh.dx, max_y: mesh.ny * mesh.dy,
+        });
+        // Force style re-render by clearing the cached style key
+        this.styleKeys.delete('layer_terrain');
+      });
+    });
+
     effect(() => {
       const layers = this.layerStore.layers();
+      const currentIds = new Set(layers.map(l => l.id));
+
+      // Remove layers that are no longer in the store
+      for (const id of this.renderedIds) {
+        if (!currentIds.has(id)) {
+          this.svc.removeLayer(id);
+          this.styleKeys.delete(id);
+          this.renderedIds.delete(id);
+        }
+      }
+
       for (const layer of layers) {
         this.svc.setLayerVisibility(layer.id, layer.visibility);
         this.svc.setLayerOpacity(layer.id, layer.opacity);
@@ -164,6 +194,8 @@ export class MapPage implements OnInit, OnDestroy {
             });
           }
         }
+
+        this.renderedIds.add(layer.id);
       }
     });
   }

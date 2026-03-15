@@ -131,13 +131,34 @@ class Solver2D:
         self._initialized = True
 
     def _make_synthetic_terrain(self) -> np.ndarray:
-        """Generate a simple sinusoidal terrain for testing."""
-        x = np.arange(self.nx) * self.dx
-        y = np.arange(self.ny) * self.dy
+        """
+        Generate a demo valley terrain: ridged perimeter, low central basin,
+        with a narrow river channel running N–S through the centre.
+
+        Rainfall visibly pools in the basin and drains along the channel,
+        making for a clear proof-of-concept even without real GIS data.
+        """
+        # Normalised coordinates –1 … +1
+        x = np.linspace(-1.0, 1.0, self.nx)
+        y = np.linspace(-1.0, 1.0, self.ny)
         xx, yy = np.meshgrid(x, y, indexing="ij")
-        A = self._tc.amplitude
-        L = self._tc.wavelength
-        return A * (np.sin(2 * np.pi * xx / L) + np.cos(2 * np.pi * yy / L))
+
+        ridge_h = self._tc.amplitude * 5.0   # ridge height (m)
+        chan_d  = self._tc.amplitude * 1.5   # channel incision depth (m)
+
+        # Parabolic bowl — high at edges, low at centre
+        r = np.sqrt(xx ** 2 + yy ** 2)
+        z = ridge_h * np.clip(r / 0.85, 0.0, 1.0) ** 2
+
+        # River channel incised along x = 0 (N–S centreline)
+        chan_w = 0.07   # half-width in normalised units (~350 m for 10 km domain)
+        z -= chan_d * np.exp(-(xx / chan_w) ** 2)
+
+        # Small roughness so water spreads realistically
+        rng = np.random.default_rng(42)
+        z += 0.3 * rng.standard_normal((self.nx, self.ny))
+
+        return np.maximum(z, 0.0)
 
     # ── AbstractSolver protocol ───────────────────────────────────────────
 

@@ -584,10 +584,10 @@ export class TerrainViewerService {
 
   private _pan(dxPx: number, dyPx: number): void {
     const s = this.orbit.radius * 0.0012;
-    this.orbit.targetX -= dxPx * s * Math.cos(this.orbit.theta);
-    this.orbit.targetZ -= dxPx * s * Math.sin(this.orbit.theta);
-    this.orbit.targetX += dyPx * s * Math.sin(this.orbit.theta) * Math.cos(this.orbit.phi);
-    this.orbit.targetZ -= dyPx * s * Math.cos(this.orbit.theta) * Math.cos(this.orbit.phi);
+    this.orbit.targetX += dxPx * s * Math.cos(this.orbit.theta);
+    this.orbit.targetZ += dxPx * s * Math.sin(this.orbit.theta);
+    this.orbit.targetX -= dyPx * s * Math.sin(this.orbit.theta) * Math.cos(this.orbit.phi);
+    this.orbit.targetZ += dyPx * s * Math.cos(this.orbit.theta) * Math.cos(this.orbit.phi);
   }
 
   // ── Raycasting (click-to-inspect) ───────────────────────────────────────

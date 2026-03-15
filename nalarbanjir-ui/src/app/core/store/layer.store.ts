@@ -71,12 +71,12 @@ export const LayerStore = signalStore(
     },
 
     removeLayer(id: string): void {
-      api.deleteLayer(id).subscribe({
-        next: () => patchState(store, {
-          layers:          store.layers().filter(l => l.id !== id),
-          selectedLayerId: store.selectedLayerId() === id ? null : store.selectedLayerId(),
-        }),
+      // Optimistic removal — works for local-only layers (404 from API is fine)
+      patchState(store, {
+        layers:          store.layers().filter(l => l.id !== id),
+        selectedLayerId: store.selectedLayerId() === id ? null : store.selectedLayerId(),
       });
+      api.deleteLayer(id).subscribe({ error: () => {} });
     },
 
     reorderLayers(orderedIds: string[]): void {

@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import logging
 
+import numpy as np
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 
-from src.core.config import get_config
+from src.core.config import NalarbanjirConfig, get_config
 from src.physics.engine import SimulationEngine
+from src.physics.solver_2d.finite_volume import Solver2D
 from src.physics.state import Solver1DState, Solver2DState, CoupledState
 from src.api.dependencies import get_engine
 from src.api.serializers import (
@@ -24,6 +26,7 @@ from src.api.serializers import (
     compute_flood_stats,
 )
 from src.api.schemas.simulation import (
+    RainfallParams,
     RunRequest,
     SimulationStatusResponse,
     SimulationStateResponse,
@@ -73,10 +76,17 @@ async def start(body: RunRequest, request: Request) -> StartResponse:
     else:
         engine.initialize()
 
+    # Apply rainfall to the 2D solver (was previously ignored)
+    if mode in ("2d", "1d2d") and engine._solver_2d is not None:
+        _apply_rainfall(engine._solver_2d, body.rainfall, cfg)
+
     request.app.state.engine = engine
     request.app.state.step_count = 0
 
-    logger.info("Simulation started: mode=%s", mode)
+    logger.info(
+        "Simulation started: mode=%s rainfall=%s intensity=%.2e m/s",
+        mode, body.rainfall.pattern, body.rainfall.intensity,
+    )
     return StartResponse(ok=True, mode=mode, message=f"Engine initialised in mode '{mode}'")
 
 
@@ -143,6 +153,34 @@ async def reset(
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
+
+def _apply_rainfall(solver: Solver2D, params: RainfallParams, cfg: NalarbanjirConfig) -> None:
+    """Compute and set the rainfall source array on the 2D solver."""
+    nx, ny, dx, dy = solver.nx, solver.ny, solver.dx, solver.dy
+    solver._rain[:] = 0.0
+
+    if params.intensity <= 0:
+        return
+
+    if params.pattern == "uniform":
+        solver._rain[:] = params.intensity
+
+    elif params.pattern == "storm_cell":
+        sigma = cfg.rainfall.storm_cell.sigma
+        cx = params.storm_x if params.storm_x is not None else nx * dx / 2.0
+        cy = params.storm_y if params.storm_y is not None else ny * dy / 2.0
+        x = (np.arange(nx) + 0.5) * dx
+        y = (np.arange(ny) + 0.5) * dy
+        xx, yy = np.meshgrid(x, y, indexing="ij")
+        r2 = (xx - cx) ** 2 + (yy - cy) ** 2
+        solver._rain[:] = params.intensity * np.exp(-r2 / (2.0 * sigma ** 2))
+
+    elif params.pattern == "frontal":
+        # Intensity ramps linearly from zero (west) to full (east)
+        x = (np.arange(nx) + 0.5) * dx
+        gradient = x / (nx * dx)          # 0 … 1 along x-axis
+        solver._rain[:] = params.intensity * gradient[:, np.newaxis]
+
 
 def _engine_state_response(engine: SimulationEngine) -> SimulationStateResponse:
     """Build a SimulationStateResponse from the engine's current state."""

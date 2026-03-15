@@ -63,7 +63,9 @@ async def terrain_mesh(request: Request) -> dict:
 
     engine = getattr(request.app.state, "engine", None)
     if engine is not None and engine._solver_2d is not None and engine._solver_2d._z is not None:
-        z_full = engine._solver_2d._z
+        solver = engine._solver_2d
+        z_full = solver._z
+        dx, dy = solver.dx, solver.dy
     else:
         # Synthesize on-the-fly
         import numpy as np
@@ -72,6 +74,7 @@ async def terrain_mesh(request: Request) -> dict:
         xx, yy = np.meshgrid(x, y, indexing="ij")
         A, L = cfg.terrain.amplitude, cfg.terrain.wavelength
         z_full = A * (np.sin(2 * 3.14159 * xx / L) + np.cos(2 * 3.14159 * yy / L))
+        dx, dy = sc.dx, sc.dy
 
     # Downsample by factor 10 for fast transfer
     stride = max(1, min(sc.nx, sc.ny) // 50)
@@ -81,7 +84,7 @@ async def terrain_mesh(request: Request) -> dict:
     return {
         "nx": nx_c,
         "ny": ny_c,
-        "dx": sc.dx * stride,
-        "dy": sc.dy * stride,
+        "dx": dx * stride,
+        "dy": dy * stride,
         "elevation": z_coarse.tolist(),
     }

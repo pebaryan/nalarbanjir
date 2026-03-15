@@ -61,6 +61,36 @@
   &--active    { background: rgba(56,189,248,0.12); border-color: rgba(56,189,248,0.4); color: #38bdf8; }
 }
 
+.toolbar__project {
+  display:     flex;
+  align-items: center;
+  gap:         0.4rem;
+  margin-left: 0.75rem;
+  border-left: 1px solid rgba(51,65,85,0.5);
+  padding-left: 0.75rem;
+}
+
+.project-name {
+  background:    rgba(15, 23, 42, 0.6);
+  border:        1px solid rgba(51,65,85,0.5);
+  color:         #cbd5e1;
+  border-radius: 5px;
+  padding:       0.2rem 0.5rem;
+  font-size:     0.78rem;
+  width:         130px;
+
+  &:focus {
+    outline:      none;
+    border-color: rgba(56,189,248,0.4);
+  }
+}
+
+.project-msg {
+  font-size: 0.72rem;
+  color:     #22c55e;
+  white-space: nowrap;
+}
+
 .toolbar__right {
   margin-left: auto;
   display:     flex;
@@ -96,6 +126,33 @@
   top:   56px;
   right: 12px;
   width: 260px;
+}
+
+/* ── Channel profile (bottom-left, above inspector) ─────────────────── */
+.channel-host {
+  bottom: 20px;
+  left:   12px;
+  width:  480px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(51, 65, 85, 0.7);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.channel-header {
+  display:     flex;
+  align-items: center;
+  padding:     0.4rem 0.75rem;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+}
+
+.channel-title {
+  font-size:      0.75rem;
+  font-weight:    600;
+  color:          #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* ── Inspector ───────────────────────────────────────────────────────── */

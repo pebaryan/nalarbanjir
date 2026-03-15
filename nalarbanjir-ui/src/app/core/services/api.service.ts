@@ -9,9 +9,11 @@ export interface RunRequest {
   steps: number;
   broadcast_interval?: number;
   rainfall?: {
-    pattern: 'uniform' | 'storm_cell' | 'frontal';
+    pattern:   'uniform' | 'storm_cell' | 'frontal';
     intensity: number;
-    duration: number;
+    duration:  number;
+    storm_x?:  number;
+    storm_y?:  number;
   };
 }
 

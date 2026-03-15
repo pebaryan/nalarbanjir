@@ -44,6 +44,14 @@ _LARGE_DTM_PIXELS = 500_000
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+def _looks_like_citygml(path: Path) -> bool:
+    """Quick check: is the file CityGML by peeking at the first 2 KB?"""
+    try:
+        chunk = path.read_bytes()[:2048].decode("utf-8", errors="ignore")
+        return "citygml" in chunk.lower() or "CityModel" in chunk
+    except Exception:
+        return False
+
 def _gis(request: Request) -> dict:
     return request.app.state.gis_storage
 
@@ -111,8 +119,41 @@ async def upload_gis_file(
             }
             _gis(request)[file_id] = {"type": "dtm", "data": dtm, "filename": file.filename}
 
-        elif file_ext in (".shp", ".geojson", ".json", ".gpkg"):
-            vector_data = importer.import_vector(filepath=temp_path, target_crs=target_crs)
+        elif file_ext in (".gml", ".citygml", ".xml") and _looks_like_citygml(temp_path):
+            from src.gis.citygml_parser import parse_citygml
+
+            gdf    = parse_citygml(temp_path, target_crs=target_crs)
+            tb     = gdf.total_bounds
+            crs_ep = gdf.crs.to_epsg() if gdf.crs else None
+
+            result = {
+                "file_id":        file_id,
+                "filename":        file.filename,
+                "type":            "building",
+                "format":          "citygml",
+                "feature_count":   len(gdf),
+                "crs":             crs_ep,
+                "bounds": {
+                    "min_x": float(tb[0]), "min_y": float(tb[1]),
+                    "max_x": float(tb[2]), "max_y": float(tb[3]),
+                },
+                "height_range": {
+                    "min": float(gdf["height"].min()) if "height" in gdf.columns else 0.0,
+                    "max": float(gdf["height"].max()) if "height" in gdf.columns else 20.0,
+                },
+            }
+            _gis(request)[file_id] = {"type": "building", "data": gdf, "filename": file.filename}
+
+        elif file_ext in (".shp", ".geojson", ".json", ".gpkg", ".zip"):
+            # ZIP archives may contain a complete Shapefile set
+            load_path = f"zip://{temp_path}" if file_ext == ".zip" else temp_path
+            vector_data = importer.import_vector(filepath=load_path, target_crs=target_crs)
+
+            bounds = None
+            if hasattr(vector_data, "geodataframe"):
+                tb = vector_data.geodataframe.total_bounds  # [minx, miny, maxx, maxy]
+                bounds = {"min_x": float(tb[0]), "min_y": float(tb[1]),
+                          "max_x": float(tb[2]), "max_y": float(tb[3])}
 
             result = {
                 "file_id":       file_id,
@@ -123,6 +164,7 @@ async def upload_gis_file(
                 "crs": vector_data.crs if isinstance(vector_data.crs, int)
                        else getattr(vector_data.crs, "epsg_code", None),
                 "geometry_types": vector_data.geometry_types,
+                "bounds":         bounds,
                 "attributes": list(vector_data.geodataframe.columns)[:10]
                               if hasattr(vector_data, "geodataframe") else [],
             }
@@ -460,6 +502,75 @@ async def get_tile_endpoint(tile_id: str, request: Request) -> JSONResponse:
     except Exception as exc:
         logger.error("Get tile error: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ── vector GeoJSON ────────────────────────────────────────────────────────────
+
+@router.get("/vector/{file_id}")
+async def get_vector_geojson(file_id: str, request: Request) -> JSONResponse:
+    """Return a stored vector dataset as GeoJSON (coordinates in source CRS)."""
+    gis = _gis(request)
+    if file_id not in gis:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    stored = gis[file_id]
+    if stored["type"] != "vector":
+        raise HTTPException(status_code=400, detail="File is not a vector dataset")
+
+    import json
+    vd  = stored["data"]
+    gdf = vd.geodataframe
+
+    # total_bounds: [minx, miny, maxx, maxy]
+    tb     = gdf.total_bounds
+    bounds = {"min_x": float(tb[0]), "min_y": float(tb[1]),
+              "max_x": float(tb[2]), "max_y": float(tb[3])}
+
+    crs_epsg = vd.crs if isinstance(vd.crs, int) else getattr(vd.crs, "epsg_code", None)
+
+    return JSONResponse(content={
+        "file_id":   file_id,
+        "filename":  stored.get("filename", ""),
+        "crs_epsg":  crs_epsg,
+        "bounds":    bounds,
+        "geojson":   json.loads(gdf.to_json()),
+    })
+
+
+# ── buildings (CityGML) ───────────────────────────────────────────────────────
+
+@router.get("/buildings/{file_id}")
+async def get_buildings_geojson(file_id: str, request: Request) -> JSONResponse:
+    """
+    Return buildings from a parsed CityGML file as GeoJSON.
+
+    Each feature has a 'height' property (metres) plus any available CityGML
+    scalar attributes (function, usage, storeysAboveGround, roofType …).
+    """
+    gis = _gis(request)
+    if file_id not in gis:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    stored = gis[file_id]
+    if stored["type"] != "building":
+        raise HTTPException(status_code=400, detail="File is not a CityGML building dataset")
+
+    import json
+    gdf = stored["data"]
+    tb  = gdf.total_bounds
+    crs_ep = gdf.crs.to_epsg() if gdf.crs else None
+
+    return JSONResponse(content={
+        "file_id":       file_id,
+        "filename":      stored.get("filename", ""),
+        "crs_epsg":      crs_ep,
+        "feature_count": len(gdf),
+        "bounds": {
+            "min_x": float(tb[0]), "min_y": float(tb[1]),
+            "max_x": float(tb[2]), "max_y": float(tb[3]),
+        },
+        "geojson": json.loads(gdf.to_json()),
+    })
 
 
 # ── visible tiles ─────────────────────────────────────────────────────────────

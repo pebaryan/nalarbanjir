@@ -8,25 +8,33 @@ import { catchError, switchMap } from 'rxjs/operators';
 import { ApiService } from '../../core/services/api.service';
 import { SimulationStore } from '../../core/store/simulation.store';
 import { LayerStore } from '../../core/store/layer.store';
+import { LayerApiService } from '../../core/services/layer-api.service';
+import { ProjectService } from '../../core/services/project.service';
 import { TerrainViewerService, PickEvent } from '../../shared/components/terrain-viewer/terrain-viewer.service';
 import { TerrainViewer } from '../../shared/components/terrain-viewer/terrain-viewer';
 import { LayerPanel } from '../../shared/components/layer-panel/layer-panel';
 import { SimulationPanel } from '../../shared/components/simulation-panel/simulation-panel';
 import { InspectorPanel } from '../../shared/components/inspector-panel/inspector-panel';
+import { ChannelProfile, ChannelProfileData } from '../../shared/components/channel-profile/channel-profile';
 
 @Component({
   selector: 'app-map',
   standalone: true,
-  providers: [TerrainViewerService],  // scoped here so we can inject it directly
-  imports: [CommonModule, TerrainViewer, LayerPanel, SimulationPanel, InspectorPanel],
+  providers: [TerrainViewerService],
+  imports: [CommonModule, TerrainViewer, LayerPanel, SimulationPanel, InspectorPanel, ChannelProfile],
   templateUrl: './map.html',
   styleUrl:    './map.scss',
 })
 export class MapPage implements OnInit, OnDestroy {
-  private readonly api   = inject(ApiService);
-  private readonly svc   = inject(TerrainViewerService);
-  readonly simStore      = inject(SimulationStore);
-  readonly layerStore    = inject(LayerStore);
+  private readonly api        = inject(ApiService);
+  private readonly layerApi   = inject(LayerApiService);
+  private readonly svc        = inject(TerrainViewerService);
+  private readonly project    = inject(ProjectService);
+  readonly simStore           = inject(SimulationStore);
+  readonly layerStore         = inject(LayerStore);
+
+  // Track which vector file_ids we've already fetched (avoid re-fetching on every signal change)
+  private readonly loadedVectors = new Set<string>();
 
   // HUD panel visibility
   readonly showLayers     = signal(true);
@@ -35,31 +43,63 @@ export class MapPage implements OnInit, OnDestroy {
   // Inspector
   readonly pickEvent = signal<PickEvent | null>(null);
 
+  // 1D channel profile — shown when 1D state is available
+  readonly channelData = signal<ChannelProfileData | null>(null);
+
   // Raw grids from API (used to feed the viewer)
   private elevationGrid: number[][] | null = null;
   private subs: Subscription[] = [];
 
+  // Project import/export state
+  readonly projectName    = signal('My Project');
+  readonly projectMsg     = signal('');
+
   constructor() {
-    // React to layer config changes → update viewer styles
     effect(() => {
       const layers = this.layerStore.layers();
       for (const layer of layers) {
         this.svc.setLayerVisibility(layer.id, layer.visibility);
         this.svc.setLayerOpacity(layer.id, layer.opacity);
+
+        // Load vector / building layers from backend when they first appear
+        const isGeoLayer = (layer.type === 'vector' || layer.type === 'channel' || layer.type === 'building');
+        if (isGeoLayer
+            && layer.data_ref && !layer.data_ref.startsWith('sim:')
+            && !this.loadedVectors.has(layer.data_ref)) {
+          this.loadedVectors.add(layer.data_ref);
+
+          const layerCfg = {
+            visibility: layer.visibility,
+            opacity:    layer.opacity,
+            colormap:   layer.style.colormap,
+            rangeMin:   layer.style.range_min,
+            rangeMax:   layer.style.range_max,
+            color:      layer.style.color,
+          };
+
+          if (layer.type === 'building') {
+            this.layerApi.getBuildingsGeoJSON(layer.data_ref).subscribe({
+              next: res => this.svc.setBuildingLayer(layer.id, layerCfg, res.geojson, res.bounds),
+              error: () => {},
+            });
+          } else {
+            this.layerApi.getVectorGeoJSON(layer.data_ref).subscribe({
+              next: res => this.svc.setVectorLayer(layer.id, layerCfg, res.geojson, res.bounds),
+              error: () => {},
+            });
+          }
+        }
       }
     });
   }
 
   ngOnInit(): void {
-    // Load existing layers from API
     this.layerStore.loadLayers();
 
-    // Subscribe to map pick events
     this.subs.push(
       this.svc.pick$.subscribe(evt => this.pickEvent.set(evt)),
     );
 
-    // Load terrain mesh and create/update DEM layer
     this.api.getTerrainMesh().subscribe(mesh => {
       this.elevationGrid = mesh.elevation;
       const terrainLayer = {
@@ -77,54 +117,98 @@ export class MapPage implements OnInit, OnDestroy {
       );
     });
 
-    // Poll simulation state every 2 s — 409 = no engine yet, silently skip
+    // Poll simulation state every 2 s
     const poll = interval(2000).pipe(
       switchMap(() => this.api.getState().pipe(catchError(() => EMPTY))),
     ).subscribe({
       next: state => {
-        if (!state.state_2d) return;
-        const s2d = state.state_2d;
-        const nx  = s2d.water_depth.length;
-        const ny  = s2d.water_depth[0]?.length ?? 0;
+        // ── 2D state ──────────────────────────────────────────────────
+        if (state.state_2d) {
+          const s2d = state.state_2d;
+          const nx  = s2d.water_depth.length;
+          const ny  = s2d.water_depth[0]?.length ?? 0;
 
-        // Update stats
-        if (state.stats) {
-          this.simStore.updateFromStep(state.elapsed_time, state.current_step, {
-            maxDepth: state.stats.max_depth, meanDepth: state.stats.mean_depth,
-            floodedCells: state.stats.flooded_cells,
-            floodedAreaKm2: state.stats.flooded_area_km2,
-            dominantRisk: state.stats.dominant_risk as any,
+          if (state.stats) {
+            this.simStore.updateFromStep(state.elapsed_time, state.current_step, {
+              maxDepth: state.stats.max_depth, meanDepth: state.stats.mean_depth,
+              floodedCells: state.stats.flooded_cells,
+              floodedAreaKm2: state.stats.flooded_area_km2,
+              dominantRisk: state.stats.dominant_risk as any,
+            });
+          }
+
+          const fdLayer = this.layerStore.floodDepthLayer();
+          if (fdLayer) {
+            this.svc.setFloodLayer(
+              'sim_flood_depth',
+              { visibility: fdLayer.visibility, opacity: fdLayer.opacity, colormap: fdLayer.style.colormap,
+                rangeMin: fdLayer.style.range_min, rangeMax: fdLayer.style.range_max, color: fdLayer.style.color },
+              s2d.water_depth, this.elevationGrid,
+              nx, ny, 100, 100,
+            );
+          }
+
+          const riskLayer = this.layerStore.floodRiskLayer();
+          if (riskLayer && s2d.flood_risk) {
+            this.svc.setRiskLayer(
+              'sim_flood_risk',
+              { visibility: riskLayer.visibility, opacity: riskLayer.opacity, colormap: 'risk',
+                rangeMin: 0, rangeMax: 4, color: '#ef4444' },
+              s2d.flood_risk, nx, ny, 100, 100, this.elevationGrid,
+            );
+          }
+        }
+
+        // ── 1D state ──────────────────────────────────────────────────
+        if (state.state_1d) {
+          const s1d = state.state_1d;
+          // Reconstruct bed elevation from water surface - (approximate: use min water as bed proxy
+          // Real bed elevation comes from the cross-section z_bed; server could expose it.
+          // For now, compute bed as water_surface - a fixed bank height offset when depth > 0.
+          // The channel profile viewer just needs relative shape, so this is sufficient.
+          const bedElev = s1d.water_surface_elev.map((ws, i) => {
+            // bed = water surface minus typical bankfull depth (rough estimate from discharge)
+            const q = s1d.discharge[i] ?? 0;
+            const approxDepth = Math.max(q / (20 * 1.5), 0); // Q / (width * V_est)
+            return ws - approxDepth;
           });
-        }
-
-        // Update flood depth layer (if visible in store)
-        const fdLayer = this.layerStore.floodDepthLayer();
-        if (fdLayer) {
-          this.svc.setFloodLayer(
-            'sim_flood_depth',
-            { visibility: fdLayer.visibility, opacity: fdLayer.opacity, colormap: fdLayer.style.colormap,
-              rangeMin: fdLayer.style.range_min, rangeMax: fdLayer.style.range_max, color: fdLayer.style.color },
-            s2d.water_depth, this.elevationGrid,
-            nx, ny,
-            this.elevationGrid ? (this.elevationGrid[0] ? 100 : 100) : 100,
-            100,
-          );
-        }
-
-        // Update risk layer (if visible in store)
-        const riskLayer = this.layerStore.floodRiskLayer();
-        if (riskLayer && s2d.flood_risk) {
-          this.svc.setRiskLayer(
-            'sim_flood_risk',
-            { visibility: riskLayer.visibility, opacity: riskLayer.opacity, colormap: 'risk',
-              rangeMin: 0, rangeMax: 4, color: '#ef4444' },
-            s2d.flood_risk, nx, ny, 100, 100, this.elevationGrid,
-          );
+          this.channelData.set({
+            chainage:          s1d.chainage,
+            bedElev,
+            waterSurfaceElev:  s1d.water_surface_elev,
+            discharge:         s1d.discharge,
+          });
+          if (!state.state_2d && state.stats) {
+            this.simStore.updateFromStep(state.elapsed_time, state.current_step, null);
+          }
+        } else {
+          // Clear channel profile when not in 1D mode
+          if (this.channelData() !== null) this.channelData.set(null);
         }
       },
       error: () => {},
     });
     this.subs.push(poll);
+  }
+
+  exportProject(): void {
+    this.project.export(this.projectName(), {
+      mode:    '2d',
+      steps:   500,
+      rainfall: { pattern: 'uniform', intensity_mm_hr: 0, duration_min: 60 },
+    });
+  }
+
+  importProject(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    this.project.import(file).then(simCfg => {
+      this.projectMsg.set(`Loaded: ${file.name}`);
+      setTimeout(() => this.projectMsg.set(''), 3000);
+    }).catch(err => {
+      this.projectMsg.set(`Import failed: ${(err as Error).message}`);
+    });
+    (event.target as HTMLInputElement).value = '';
   }
 
   ngOnDestroy(): void {

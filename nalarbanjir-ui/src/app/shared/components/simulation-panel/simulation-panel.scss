@@ -136,6 +136,71 @@
   &__value { font-size: 0.8rem;  color: #e2e8f0; font-weight: 500; font-variant-numeric: tabular-nums; }
 }
 
+.section-toggle {
+  display:     flex;
+  align-items: center;
+  gap:         0.35rem;
+  padding:     0.35rem 0.75rem;
+  font-size:   0.72rem;
+  color:       #64748b;
+  cursor:      pointer;
+  border-top:  1px solid rgba(51, 65, 85, 0.4);
+  user-select: none;
+  transition:  background 0.12s;
+
+  &:hover { background: rgba(51,65,85,0.25); color: #94a3b8; }
+
+  &__icon { font-size: 0.7rem; }
+  &__badge {
+    margin-left: auto;
+    background:  rgba(56,189,248,0.12);
+    border:      1px solid rgba(56,189,248,0.25);
+    color:       #38bdf8;
+    border-radius: 10px;
+    padding:     1px 6px;
+    font-size:   0.65rem;
+  }
+}
+
+.rainfall-section {
+  border-bottom: 1px solid rgba(51,65,85,0.4);
+  padding-bottom: 0.25rem;
+
+  .field {
+    display:        flex;
+    align-items:    center;
+    padding:        0.3rem 0.75rem;
+    gap:            0.5rem;
+    font-size:      0.72rem;
+    color:          #94a3b8;
+
+    span { flex: 0 0 60px; }
+
+    select {
+      flex:          1;
+      background:    rgba(15,23,42,0.8);
+      border:        1px solid #334155;
+      color:         #e2e8f0;
+      border-radius: 4px;
+      padding:       3px 5px;
+      font-size:     0.75rem;
+    }
+  }
+}
+
+.hint {
+  margin:     0 0.75rem 0.5rem;
+  padding:    0.4rem 0.6rem;
+  background: rgba(56,189,248,0.06);
+  border:     1px solid rgba(56,189,248,0.15);
+  color:      #64748b;
+  border-radius: 4px;
+  font-size:  0.7rem;
+  line-height: 1.6;
+
+  strong { color: #94a3b8; }
+}
+
 .ws-status {
   padding:    0.35rem 0.75rem;
   font-size:  0.68rem;

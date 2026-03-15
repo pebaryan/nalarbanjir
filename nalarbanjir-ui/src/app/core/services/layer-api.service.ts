@@ -2,6 +2,27 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+export interface GeoJSONGeometry {
+  type: string;
+  coordinates: any;
+}
+export interface GeoJSONFeature {
+  type: 'Feature';
+  geometry: GeoJSONGeometry;
+  properties: Record<string, any> | null;
+}
+export interface GeoJSONFeatureCollection {
+  type: 'FeatureCollection';
+  features: GeoJSONFeature[];
+}
+export interface VectorGeoJSONResponse {
+  file_id:  string;
+  filename: string;
+  crs_epsg: number | null;
+  bounds:   { min_x: number; min_y: number; max_x: number; max_y: number };
+  geojson:  GeoJSONFeatureCollection;
+}
+
 export interface LayerStyle {
   color:      string;
   colormap:   string;
@@ -19,7 +40,7 @@ export interface LayerMetadata {
   source_filename: string | null;
 }
 
-export type LayerType = 'dem' | 'flood_depth' | 'flood_risk' | 'vector' | 'rain' | 'channel';
+export type LayerType = 'dem' | 'flood_depth' | 'flood_risk' | 'vector' | 'rain' | 'channel' | 'building';
 
 export interface Layer {
   id:         string;
@@ -78,14 +99,31 @@ export class LayerApiService {
   }
 
   uploadGisFile(file: File, targetCrs?: number): Observable<{
-    file_id: string; filename: string; type: string;
-    bounds?: { min_x: number; min_y: number; max_x: number; max_y: number };
-    dimensions?: { width: number; height: number };
+    file_id:         string;
+    filename:        string;
+    type:            string;         // 'raster' | 'vector'
+    format:          string;
+    // raster-only
+    bounds?:         { min_x: number; min_y: number; max_x: number; max_y: number };
+    dimensions?:     { width: number; height: number };
     elevation_stats?: { min: number; max: number; mean: number; std: number };
+    // vector-only
+    feature_count?:  number;
+    geometry_types?: string[];
+    crs?:            number | null;
+    attributes?:     string[];
   }> {
     const fd = new FormData();
     fd.append('file', file);
     if (targetCrs != null) fd.append('target_crs', String(targetCrs));
     return this.http.post<any>('/api/gis/upload', fd);
+  }
+
+  getVectorGeoJSON(fileId: string): Observable<VectorGeoJSONResponse> {
+    return this.http.get<VectorGeoJSONResponse>(`/api/gis/vector/${fileId}`);
+  }
+
+  getBuildingsGeoJSON(fileId: string): Observable<VectorGeoJSONResponse> {
+    return this.http.get<VectorGeoJSONResponse>(`/api/gis/buildings/${fileId}`);
   }
 }

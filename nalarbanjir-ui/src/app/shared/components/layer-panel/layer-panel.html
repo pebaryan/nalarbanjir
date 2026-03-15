@@ -4,7 +4,7 @@
     <button class="btn-add" (click)="openFilePicker()" [disabled]="uploading()" title="Upload DEM / GIS file">
       @if (uploading()) { <span class="spin">⟳</span> } @else { + }
     </button>
-    <input #fileInput type="file" accept=".tif,.tiff,.asc,.shp,.geojson,.json"
+    <input #fileInput type="file" accept=".tif,.tiff,.asc,.geojson,.json,.gpkg,.zip,.gml,.citygml"
            style="display:none" (change)="onFileSelected($event)" />
   </div>
 
@@ -69,7 +69,7 @@
                    placeholder="auto" />
           </label>
 
-          @if (layer.type === 'vector' || layer.type === 'channel') {
+          @if (layer.type === 'vector' || layer.type === 'channel' || layer.type === 'building') {
             <label>Colour
               <input type="color" [ngModel]="layer.style.color"
                      (ngModelChange)="updateStyle(layer, 'color', $event)" />
@@ -81,6 +81,10 @@
   </ul>
 
   @if (store.orderedLayers().length === 0 && !store.loading()) {
-    <div class="panel__empty">No layers yet.<br>Upload a DEM or start a simulation.</div>
+    <div class="panel__empty">
+      No layers yet.<br>
+      Upload a DEM, river network, or CityGML building dataset,
+      or start a simulation.
+    </div>
   }
 </div>

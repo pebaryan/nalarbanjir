@@ -14,6 +14,25 @@
         ▶ Simulation
       </button>
     </div>
+
+    <!-- Project name + save/load -->
+    <div class="toolbar__project">
+      <input class="project-name" type="text"
+             [value]="projectName()" (change)="projectName.set($any($event.target).value)"
+             title="Project name" />
+      <button class="hud-btn" (click)="exportProject()" title="Export project as JSON">
+        ↓ Save
+      </button>
+      <label class="hud-btn" title="Import project from JSON">
+        ↑ Load
+        <input type="file" accept=".json,.nalarbanjir.json" style="display:none"
+               (change)="importProject($event)" />
+      </label>
+      @if (projectMsg()) {
+        <span class="project-msg">{{ projectMsg() }}</span>
+      }
+    </div>
+
     <div class="toolbar__right">
       <span class="sim-time">{{ simStore.formattedTime() }}</span>
       <span class="sim-step">{{ simStore.formattedStep() }}</span>
@@ -32,6 +51,16 @@
     <aside class="hud panel-right">
       <app-simulation-panel></app-simulation-panel>
     </aside>
+  }
+
+  <!-- ── 1D River profile (bottom) ─────────────────────────────────────── -->
+  @if (channelData()) {
+    <div class="hud channel-host">
+      <div class="channel-header">
+        <span class="channel-title">River Profile (1D)</span>
+      </div>
+      <app-channel-profile [data]="channelData()"></app-channel-profile>
+    </div>
   }
 
   <!-- ── Inspector (click-to-query, bottom-centre) ────────────────────── -->

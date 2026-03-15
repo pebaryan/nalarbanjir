@@ -19,6 +19,7 @@ import { Injectable } from '@angular/core';
 import * as THREE from 'three';
 import { Subject } from 'rxjs';
 import { sampleColormap, ColormapName } from '../../utils/colormap';
+import { GeoJSONFeatureCollection } from '../../../core/services/layer-api.service';
 
 export interface LayerRenderConfig {
   visibility: boolean;
@@ -46,14 +47,18 @@ export class TerrainViewerService {
   private animId!:   number;
   private canvas!:   HTMLCanvasElement;
 
-  private readonly raycaster   = new THREE.Raycaster();
-  private readonly layerMeshes = new Map<string, THREE.Mesh>();
-  private readonly meshToLayer = new Map<THREE.Object3D, string>();
+  private readonly raycaster    = new THREE.Raycaster();
+  private readonly layerMeshes  = new Map<string, THREE.Mesh>();
+  private readonly layerLines   = new Map<string, THREE.LineSegments>();
+  private readonly meshToLayer  = new Map<THREE.Object3D, string>();
 
   private nx = 100;
   private ny = 100;
   private dx = 100;
   private dy = 100;
+
+  // World bounds of the currently active DEM (for vector coordinate mapping)
+  private demBounds: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
 
   private orbit = { theta: 0.8, phi: 1.0, radius: 8000, targetX: 0, targetZ: 0 };
   private drag   = { active: false, right: false, lastX: 0, lastY: 0, downX: 0, downY: 0 };
@@ -101,7 +106,9 @@ export class TerrainViewerService {
   destroy(): void {
     cancelAnimationFrame(this.animId);
     this.layerMeshes.forEach(m => { m.geometry.dispose(); (m.material as THREE.Material).dispose(); });
+    this.layerLines.forEach(l => { l.geometry.dispose(); (l.material as THREE.Material).dispose(); });
     this.layerMeshes.clear();
+    this.layerLines.clear();
     this.meshToLayer.clear();
     this.renderer?.dispose();
     this.pick$.complete();
@@ -113,8 +120,10 @@ export class TerrainViewerService {
   setDemLayer(
     id: string, cfg: LayerRenderConfig,
     elevation: number[][], nx: number, ny: number, dx: number, dy: number,
+    worldBounds?: { minX: number; minY: number; maxX: number; maxY: number } | null,
   ): void {
     this.nx = nx; this.ny = ny; this.dx = dx; this.dy = dy;
+    if (worldBounds) this.demBounds = worldBounds;
     this._removeMesh(id);
 
     const flat = elevation.flat();
@@ -168,20 +177,106 @@ export class TerrainViewerService {
     mesh.position.y = 0.3;
   }
 
-  removeLayer(id: string): void { this._removeMesh(id); }
+  removeLayer(id: string): void {
+    this._removeMesh(id);
+    this._removeLines(id);
+  }
 
   setLayerVisibility(id: string, visible: boolean): void {
     const m = this.layerMeshes.get(id);
     if (m) m.visible = visible;
+    const l = this.layerLines.get(id);
+    if (l) l.visible = visible;
   }
 
   setLayerOpacity(id: string, opacity: number): void {
     const m = this.layerMeshes.get(id);
-    if (!m) return;
-    const mat = m.material as THREE.MeshLambertMaterial;
-    mat.opacity      = opacity;
-    mat.transparent  = opacity < 1;
-    mat.needsUpdate  = true;
+    if (m) {
+      const mat = m.material as THREE.MeshLambertMaterial;
+      mat.opacity = opacity; mat.transparent = opacity < 1; mat.needsUpdate = true;
+    }
+    const l = this.layerLines.get(id);
+    if (l) {
+      const mat = l.material as THREE.LineBasicMaterial;
+      mat.opacity = opacity; mat.transparent = opacity < 1; mat.needsUpdate = true;
+    }
+  }
+
+  /**
+   * Render a GeoJSON vector layer as lines on top of the terrain.
+   * Coordinates are mapped from world-space (DEM CRS) to scene space.
+   * If no DEM bounds are known, coordinates are treated as scene-local.
+   */
+  setVectorLayer(
+    id: string,
+    cfg: LayerRenderConfig,
+    geojson: GeoJSONFeatureCollection,
+    vectorBounds: { min_x: number; min_y: number; max_x: number; max_y: number },
+  ): void {
+    this._removeLines(id);
+
+    const pts: number[] = [];
+    const sceneW = this.nx * this.dx;
+    const sceneH = this.ny * this.dy;
+
+    // Determine coordinate transform: map [minX..maxX] × [minY..maxY] → [0..sceneW] × [0..sceneH]
+    // Prefer aligning to DEM bounds when available; fall back to vector's own bounds.
+    const srcBounds = this.demBounds
+      ? { minX: this.demBounds.minX, minY: this.demBounds.minY,
+          maxX: this.demBounds.maxX, maxY: this.demBounds.maxY }
+      : { minX: vectorBounds.min_x, minY: vectorBounds.min_y,
+          maxX: vectorBounds.max_x, maxY: vectorBounds.max_y };
+
+    const rangeX = srcBounds.maxX - srcBounds.minX || 1;
+    const rangeY = srcBounds.maxY - srcBounds.minY || 1;
+
+    const toScene = (x: number, y: number): [number, number] => [
+      ((x - srcBounds.minX) / rangeX) * sceneW,
+      ((y - srcBounds.minY) / rangeY) * sceneH,
+    ];
+
+    // Walk all features and extract line/ring segments
+    const pushLine = (coords: number[][]) => {
+      for (let i = 0; i < coords.length - 1; i++) {
+        const [ax, az] = toScene(coords[i][0], coords[i][1]);
+        const [bx, bz] = toScene(coords[i + 1][0], coords[i + 1][1]);
+        pts.push(ax, 0.5, az, bx, 0.5, bz);   // y=0.5 floats slightly above terrain
+      }
+    };
+
+    for (const feat of geojson.features) {
+      if (!feat.geometry) continue;
+      const g = feat.geometry;
+      switch (g.type) {
+        case 'LineString':      pushLine(g.coordinates as number[][]); break;
+        case 'MultiLineString': (g.coordinates as number[][][]).forEach(pushLine); break;
+        case 'Polygon':         (g.coordinates as number[][][]).forEach(pushLine); break;
+        case 'MultiPolygon':    (g.coordinates as number[][][][]).forEach(rings => rings.forEach(pushLine)); break;
+        case 'Point': {
+          const [px, pz] = toScene((g.coordinates as number[])[0], (g.coordinates as number[])[1]);
+          pts.push(px - 5, 0.5, pz, px + 5, 0.5, pz);
+          break;
+        }
+      }
+    }
+
+    if (pts.length === 0) return;
+
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+
+    const color = new THREE.Color(cfg.color || '#38bdf8');
+    const mat   = new THREE.LineBasicMaterial({
+      color,
+      transparent: cfg.opacity < 1,
+      opacity:     cfg.opacity,
+      linewidth:   1,   // >1 only works in WebGL2 with linewidth extension
+    });
+
+    const lines      = new THREE.LineSegments(geom, mat);
+    lines.visible    = cfg.visibility;
+    this.scene.add(lines);
+    this.layerLines.set(id, lines);
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────
@@ -210,6 +305,127 @@ export class TerrainViewerService {
     (m.material as THREE.Material).dispose();
     this.meshToLayer.delete(m);
     this.layerMeshes.delete(id);
+  }
+
+  /**
+   * Render a CityGML building layer as extruded 3D footprints.
+   * GeoJSON features must have a `height` property (metres).
+   * Coordinates are mapped to scene space the same way as vector layers.
+   */
+  setBuildingLayer(
+    id: string,
+    cfg: LayerRenderConfig,
+    geojson: GeoJSONFeatureCollection,
+    vectorBounds: { min_x: number; min_y: number; max_x: number; max_y: number },
+  ): void {
+    this._removeMesh(id);
+
+    const sceneW = this.nx * this.dx;
+    const sceneH = this.ny * this.dy;
+
+    const srcBounds = this.demBounds
+      ? { minX: this.demBounds.minX, minY: this.demBounds.minY,
+          maxX: this.demBounds.maxX, maxY: this.demBounds.maxY }
+      : { minX: vectorBounds.min_x, minY: vectorBounds.min_y,
+          maxX: vectorBounds.max_x, maxY: vectorBounds.max_y };
+
+    const rangeX = srcBounds.maxX - srcBounds.minX || 1;
+    const rangeY = srcBounds.maxY - srcBounds.minY || 1;
+
+    const toScene = (x: number, y: number): [number, number] => [
+      ((x - srcBounds.minX) / rangeX) * sceneW,
+      ((y - srcBounds.minY) / rangeY) * sceneH,
+    ];
+
+    // Merge all buildings into a single geometry for performance
+    const positions: number[] = [];
+    const indices:   number[] = [];
+    const colors:    number[] = [];
+    let baseVertex = 0;
+
+    const wallColor  = new THREE.Color(cfg.color || '#d4a96a');
+    const roofColor  = new THREE.Color(cfg.color || '#d4a96a').multiplyScalar(0.8);
+
+    for (const feat of geojson.features) {
+      if (!feat.geometry) continue;
+      const height = (feat.properties?.['height'] as number) ?? 10;
+      if (height <= 0) continue;
+
+      const ringsList: number[][][] = [];
+      const g = feat.geometry;
+
+      if (g.type === 'Polygon') {
+        ringsList.push(g.coordinates[0] as number[][]);  // outer ring only
+      } else if (g.type === 'MultiPolygon') {
+        for (const poly of g.coordinates as number[][][][]) {
+          ringsList.push(poly[0]);
+        }
+      }
+
+      for (const ring of ringsList) {
+        if (ring.length < 3) continue;
+
+        const pts: Array<[number, number]> = ring.map(c => toScene(c[0], c[1]));
+        const n = pts.length;
+        const baseY = 0;
+        const topY  = height;
+
+        // Bottom ring
+        for (const [x, z] of pts) {
+          positions.push(x, baseY, z);
+          colors.push(wallColor.r, wallColor.g, wallColor.b);
+        }
+        // Top ring
+        for (const [x, z] of pts) {
+          positions.push(x, topY, z);
+          colors.push(roofColor.r, roofColor.g, roofColor.b);
+        }
+
+        // Side walls
+        for (let i = 0; i < n; i++) {
+          const j  = (i + 1) % n;
+          const b0 = baseVertex + i,       b1 = baseVertex + j;
+          const t0 = baseVertex + i + n,   t1 = baseVertex + j + n;
+          indices.push(b0, b1, t0, b1, t1, t0);
+        }
+
+        // Roof cap (simple fan from first top vertex)
+        for (let i = 1; i < n - 1; i++) {
+          indices.push(
+            baseVertex + n,
+            baseVertex + n + i,
+            baseVertex + n + i + 1,
+          );
+        }
+
+        baseVertex += n * 2;
+      }
+    }
+
+    if (positions.length === 0) return;
+
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geom.setAttribute('color',    new THREE.Float32BufferAttribute(colors, 3));
+    geom.setIndex(indices);
+    geom.computeVertexNormals();
+
+    const mat = new THREE.MeshLambertMaterial({
+      vertexColors: true,
+      transparent:  cfg.opacity < 1,
+      opacity:      cfg.opacity,
+      side:         THREE.DoubleSide,
+    });
+    this._addMesh(id, geom, mat, cfg);
+  }
+
+  private _removeLines(id: string): void {
+    const l = this.layerLines.get(id);
+    if (!l) return;
+    this.scene.remove(l);
+    l.geometry.dispose();
+    (l.material as THREE.Material).dispose();
+    this.layerLines.delete(id);
   }
 
   private _buildGeom(

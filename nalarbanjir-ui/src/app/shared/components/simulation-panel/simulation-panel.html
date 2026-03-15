@@ -5,39 +5,104 @@
           [title]="store.status()"></span>
   </div>
 
-  <!-- Mode selector -->
+  <!-- ── Mode selector ───────────────────────────────────────────── -->
   <div class="mode-tabs">
     @for (m of modes; track m) {
       <button class="mode-tab" [class.mode-tab--active]="selectedMode() === m"
-              (click)="selectedMode.set(m)">{{ m }}</button>
+              (click)="selectedMode.set(m)" [title]="m === '1d' ? '1D channel routing' : m === '2d' ? '2D shallow-water solver' : 'Coupled 1D+2D'">
+        {{ m }}
+      </button>
     }
   </div>
 
-  <!-- Steps config -->
+  <!-- ── Steps config ────────────────────────────────────────────── -->
   <div class="config-row">
     <label>Total steps
-      <input type="number" [ngModel]="steps()" (ngModelChange)="steps.set($event)"
+      <input type="number" [ngModel]="steps()" (ngModelChange)="steps.set(+$event)"
              min="1" max="100000" />
     </label>
     <label>Step N
-      <input type="number" [ngModel]="stepN()" (ngModelChange)="stepN.set($event)"
+      <input type="number" [ngModel]="stepN()" (ngModelChange)="stepN.set(+$event)"
              min="1" max="1000" />
     </label>
   </div>
 
-  <!-- Controls -->
+  <!-- ── Rainfall toggle ─────────────────────────────────────────── -->
+  <div class="section-toggle" (click)="showRainfall.set(!showRainfall())">
+    <span class="section-toggle__icon">{{ showRainfall() ? '▾' : '▸' }}</span>
+    <span>Rainfall</span>
+    @if (rainfallMmHr() > 0) {
+      <span class="section-toggle__badge">{{ rainfallMmHr() }} mm/hr</span>
+    }
+  </div>
+
+  @if (showRainfall()) {
+    <div class="rainfall-section">
+      <label class="field">
+        <span>Pattern</span>
+        <select [ngModel]="rainfallPattern()" (ngModelChange)="rainfallPattern.set($event)">
+          @for (p of rainfallPatterns; track p) {
+            <option [value]="p">{{ p === 'storm_cell' ? 'Storm Cell' : p === 'frontal' ? 'Frontal' : 'Uniform' }}</option>
+          }
+        </select>
+      </label>
+      <div class="config-row" style="padding: 0 0.75rem 0.4rem">
+        <label>Intensity (mm/hr)
+          <input type="number" [ngModel]="rainfallMmHr()" (ngModelChange)="rainfallMmHr.set(+$event)"
+                 min="0" max="500" step="1" />
+        </label>
+        <label>Duration (min)
+          <input type="number" [ngModel]="rainfallDurMin()" (ngModelChange)="rainfallDurMin.set(+$event)"
+                 min="1" max="1440" step="5" />
+        </label>
+      </div>
+      @if (rainfallPattern() === 'storm_cell') {
+        <div class="config-row" style="padding: 0 0.75rem 0.4rem">
+          <label>Storm X (m)
+            <input type="number" [ngModel]="stormX()" (ngModelChange)="stormX.set(+$event)" step="100" />
+          </label>
+          <label>Storm Y (m)
+            <input type="number" [ngModel]="stormY()" (ngModelChange)="stormY.set(+$event)" step="100" />
+          </label>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ── Controls ─────────────────────────────────────────────────── -->
   <div class="controls">
-    <button class="btn btn--primary" (click)="start()">Init</button>
-    <button class="btn" (click)="step()" [disabled]="store.isRunning()">+{{ stepN() }}</button>
-    <button class="btn btn--run"  (click)="run()"   [disabled]="store.isRunning()">▶ Run</button>
-    <button class="btn btn--warn" (click)="reset()">↺ Reset</button>
+    <button class="btn btn--primary" (click)="start()"
+            title="Initialize engine with current settings">
+      ⚙ Initialize
+    </button>
+    <button class="btn" (click)="step()" [disabled]="store.isRunning()"
+            title="Advance simulation by Step N steps">
+      +{{ stepN() }}
+    </button>
+    <button class="btn btn--run"  (click)="run()"   [disabled]="store.isRunning()"
+            title="Run continuously via WebSocket">
+      ▶ Run
+    </button>
+    <button class="btn btn--warn" (click)="reset()"
+            title="Reset engine to t=0">
+      ↺ Reset
+    </button>
   </div>
 
   @if (errorMsg()) {
     <div class="error">{{ errorMsg() }}</div>
   }
 
-  <!-- Stats -->
+  <!-- ── Workflow hint (before engine is initialized) ─────────────── -->
+  @if (!store.stepCount() && !store.isRunning()) {
+    <div class="hint">
+      1. Select mode &amp; configure rainfall<br>
+      2. Click <strong>Initialize</strong><br>
+      3. Click <strong>▶ Run</strong> or <strong>+N</strong> to advance
+    </div>
+  }
+
+  <!-- ── Stats ────────────────────────────────────────────────────── -->
   @if (store.stats()) {
     <div class="stats">
       <div class="stat"><span class="stat__label">Time</span><span class="stat__value">{{ store.formattedTime() }}</span></div>
@@ -47,7 +112,7 @@
     </div>
   }
 
-  <!-- WS indicator -->
+  <!-- ── WS indicator ─────────────────────────────────────────────── -->
   <div class="ws-status" [class.ws-status--connected]="store.isWsConnected()">
     {{ store.isWsConnected() ? '● WS connected' : '○ WS disconnected' }}
   </div>

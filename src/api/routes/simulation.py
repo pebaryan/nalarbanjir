@@ -118,10 +118,15 @@ async def step(
 # ── State ──────────────────────────────────────────────────────────────────
 
 @router.get("/state", response_model=SimulationStateResponse)
-async def get_state(
-    request: Request,
-    engine: SimulationEngine = Depends(get_engine),
-) -> SimulationStateResponse:
+async def get_state(request: Request) -> SimulationStateResponse:
+    """Return current simulation state, or an idle empty state if not started."""
+    engine: SimulationEngine | None = request.app.state.engine
+    if engine is None:
+        from src.api.schemas.simulation import SimulationStateResponse
+        return SimulationStateResponse(
+            mode="2d", status="idle", current_step=0, elapsed_time=0.0,
+            state_1d=None, state_2d=None, stats=None,
+        )
     return _engine_state_response(engine)
 
 

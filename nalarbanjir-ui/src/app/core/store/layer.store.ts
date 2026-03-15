@@ -59,14 +59,14 @@ export const LayerStore = signalStore(
       });
     },
 
-    /** Optimistic update, then confirm from server. */
+    /** Optimistic update, then confirm from server. 404 = local-only layer, silently accepted. */
     updateLayer(id: string, patch: LayerUpdate): void {
       patchState(store, {
         layers: store.layers().map(l => l.id === id ? { ...l, ...patch, style: patch.style ? { ...l.style, ...patch.style } : l.style } : l),
       });
       api.updateLayer(id, patch).subscribe({
         next:  updated => patchState(store, { layers: store.layers().map(l => l.id === id ? updated : l) }),
-        error: err     => patchState(store, { error: err.message }),
+        error: () => {}, // 404 = layer not persisted to backend (e.g. auto sim layers) — keep local state
       });
     },
 

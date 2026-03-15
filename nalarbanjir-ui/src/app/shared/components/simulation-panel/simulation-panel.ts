@@ -8,6 +8,8 @@ import { WebSocketService } from '../../../core/services/websocket.service';
 import { SimulationStore } from '../../../core/store/simulation.store';
 import { LayerStore } from '../../../core/store/layer.store';
 
+type RainfallPattern = 'uniform' | 'storm_cell' | 'frontal';
+
 @Component({
   selector: 'app-simulation-panel',
   standalone: true,
@@ -21,11 +23,21 @@ export class SimulationPanel implements OnInit, OnDestroy {
   readonly store           = inject(SimulationStore);
   private readonly layers  = inject(LayerStore);
 
-  readonly modes: SimulationMode[] = ['1d', '2d', '1d2d'];
-  readonly selectedMode = signal<SimulationMode>('2d');
-  readonly steps        = signal(500);
-  readonly stepN        = signal(10);
-  readonly errorMsg     = signal('');
+  readonly modes: SimulationMode[]         = ['1d', '2d', '1d2d'];
+  readonly rainfallPatterns: RainfallPattern[] = ['uniform', 'storm_cell', 'frontal'];
+
+  readonly selectedMode      = signal<SimulationMode>('2d');
+  readonly steps             = signal(500);
+  readonly stepN             = signal(10);
+  readonly errorMsg          = signal('');
+
+  // Rainfall config
+  readonly showRainfall      = signal(false);
+  readonly rainfallPattern   = signal<RainfallPattern>('uniform');
+  readonly rainfallMmHr      = signal(10);    // mm/hr — converted to m/s on submit
+  readonly rainfallDurMin    = signal(60);    // minutes — converted to s on submit
+  readonly stormX            = signal(5000);  // meters, only for storm_cell
+  readonly stormY            = signal(5000);
 
   private subs: Subscription[] = [];
 
@@ -54,14 +66,24 @@ export class SimulationPanel implements OnInit, OnDestroy {
 
   start(): void {
     this.errorMsg.set('');
-    this.api.startSimulation({ mode: this.selectedMode(), steps: this.steps() }).subscribe({
+    const intensityMs = this.rainfallMmHr() / 1_000 / 3_600;  // mm/hr → m/s
+    this.api.startSimulation({
+      mode:  this.selectedMode(),
+      steps: this.steps(),
+      rainfall: {
+        pattern:   this.rainfallPattern(),
+        intensity: intensityMs,
+        duration:  this.rainfallDurMin() * 60,
+        storm_x:   this.rainfallPattern() === 'storm_cell' ? this.stormX() : undefined,
+        storm_y:   this.rainfallPattern() === 'storm_cell' ? this.stormY() : undefined,
+      },
+    }).subscribe({
       next: res => {
         this.store.setMode(res.mode as SimulationMode);
         this.store.setStatus('idle');
-        // Auto-create sim layers in the layer store
         this._ensureSimLayers();
       },
-      error: err => this.errorMsg.set(err.error?.detail ?? 'Failed to start'),
+      error: err => this.errorMsg.set(err.error?.detail ?? 'Failed to initialize'),
     });
   }
 

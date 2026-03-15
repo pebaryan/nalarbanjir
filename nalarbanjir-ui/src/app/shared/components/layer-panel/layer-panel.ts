@@ -65,17 +65,55 @@ export class LayerPanel {
 
     this.api.uploadGisFile(file).subscribe({
       next: res => {
-        this.store.addLayer({
-          name:     file.name.replace(/\.[^.]+$/, ''),
-          type:     'dem',
-          data_ref: res.file_id,
-          style:    { color: '#74c69d', colormap: 'terrain', range_min: res.elevation_stats?.min ?? null, range_max: res.elevation_stats?.max ?? null, line_width: 1.5, point_size: 4 },
-          metadata: {
-            source_filename: res.filename,
-            bounds:          res.bounds ?? null,
-            crs_epsg:        null, resolution: null, feature_count: null,
-          },
-        });
+        const baseName = file.name.replace(/\.[^.]+$/, '');
+
+        if (res.type === 'building') {
+          this.store.addLayer({
+            name:     baseName,
+            type:     'building',
+            data_ref: res.file_id,
+            style:    { color: '#d4a96a', colormap: 'terrain', range_min: null, range_max: null, line_width: 1.5, point_size: 4 },
+            metadata: {
+              source_filename: res.filename,
+              bounds:          res.bounds ?? null,
+              crs_epsg:        res.crs ?? null,
+              resolution:      null,
+              feature_count:   res.feature_count ?? null,
+            },
+          });
+        } else if (res.type === 'vector') {
+          // Decide layer type from geometry: lines → channel, polygons → vector
+          const geomTypes: string[] = res.geometry_types ?? [];
+          const isLineGeom = geomTypes.some(g => g.toLowerCase().includes('line'));
+          const layerType = isLineGeom ? 'channel' : 'vector';
+
+          this.store.addLayer({
+            name:     baseName,
+            type:     layerType,
+            data_ref: res.file_id,
+            style:    { color: '#38bdf8', colormap: 'blues', range_min: null, range_max: null, line_width: 2, point_size: 4 },
+            metadata: {
+              source_filename: res.filename,
+              bounds:          res.bounds ?? null,
+              crs_epsg:        res.crs ?? null,
+              resolution:      null,
+              feature_count:   res.feature_count ?? null,
+            },
+          });
+        } else {
+          this.store.addLayer({
+            name:     baseName,
+            type:     'dem',
+            data_ref: res.file_id,
+            style:    { color: '#74c69d', colormap: 'terrain', range_min: res.elevation_stats?.min ?? null, range_max: res.elevation_stats?.max ?? null, line_width: 1.5, point_size: 4 },
+            metadata: {
+              source_filename: res.filename,
+              bounds:          res.bounds ?? null,
+              crs_epsg:        null, resolution: null, feature_count: null,
+            },
+          });
+        }
+
         this.uploading.set(false);
         this.fileInput.nativeElement.value = '';
       },
@@ -113,6 +151,7 @@ export class LayerPanel {
     vector:      '🗺',
     rain:        '🌧',
     channel:     '〰',
+    building:    '🏢',
   };
 
   trackById(_: number, l: Layer): string { return l.id; }

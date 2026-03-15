@@ -8,6 +8,11 @@ FROM python:3.13-slim AS builder
 
 WORKDIR /install
 
+# GDAL / rasterio build deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gdal-bin libgdal-dev g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --prefix=/install --no-cache-dir -r requirements.txt
 
@@ -20,6 +25,11 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
 WORKDIR /app
+
+# GDAL shared libs needed at runtime by rasterio
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libgdal-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy pre-built packages
 COPY --from=builder /install /usr/local

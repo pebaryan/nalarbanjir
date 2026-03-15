@@ -2,8 +2,8 @@ import {
   Component, inject, OnInit, OnDestroy, signal, effect,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subscription, interval } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { EMPTY, Subscription, interval } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 
 import { ApiService } from '../../core/services/api.service';
 import { SimulationStore } from '../../core/store/simulation.store';
@@ -77,9 +77,9 @@ export class MapPage implements OnInit, OnDestroy {
       );
     });
 
-    // Poll simulation state every 2 s
+    // Poll simulation state every 2 s — 409 = no engine yet, silently skip
     const poll = interval(2000).pipe(
-      switchMap(() => this.api.getState()),
+      switchMap(() => this.api.getState().pipe(catchError(() => EMPTY))),
     ).subscribe({
       next: state => {
         if (!state.state_2d) return;
@@ -122,7 +122,7 @@ export class MapPage implements OnInit, OnDestroy {
           );
         }
       },
-      error: () => {},  // engine may not be started
+      error: () => {},
     });
     this.subs.push(poll);
   }

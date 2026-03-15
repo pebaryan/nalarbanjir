@@ -76,6 +76,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # ML predictor is created lazily on first prediction request
     app.state.ml_predictor = None
 
+    # GIS state — populated by /api/gis/* endpoints
+    from src.gis.tile_manager import TerrainTileManager
+    app.state.gis_storage  = {}   # file_id  → {type, data, filename}
+    app.state.mesh_storage = {}   # mesh_id  → {type, data, source_file, params}
+    app.state.tiled_dtms   = {}   # file_id  → list[tile_id]
+    app.state.tiling_tasks = {}   # task_id  → progress dict
+    app.state.tile_manager = TerrainTileManager()
+
+    # Layer state — populated by /api/layers/* endpoints
+    app.state.layer_storage = {}  # layer_id → layer dict
+
     logger.info("Startup complete. API listening on %s:%d", config.api.host, config.api.port)
 
     yield

@@ -1,20 +1,45 @@
-<section class="map-page">
-  <h1>Map / Viewer</h1>
+<div class="workspace">
 
-  <div class="map-page__layout">
-    <!-- 3D terrain/water viewport -->
-    <div class="viewport-container">
-      <app-terrain-viewer
-        [terrain]="terrain()"
-        [water]="water()"
-        class="viewport">
-      </app-terrain-viewer>
+  <!-- ── Three.js canvas (fills everything) ───────────────────────────── -->
+  <app-terrain-viewer class="canvas-host"></app-terrain-viewer>
+
+  <!-- ── Top toolbar ──────────────────────────────────────────────────── -->
+  <header class="hud toolbar">
+    <span class="brand">Nalarbanjir</span>
+    <div class="toolbar__actions">
+      <button class="hud-btn" [class.hud-btn--active]="showLayers()" (click)="showLayers.set(!showLayers())">
+        ⊞ Layers
+      </button>
+      <button class="hud-btn" [class.hud-btn--active]="showSimulation()" (click)="showSimulation.set(!showSimulation())">
+        ▶ Simulation
+      </button>
     </div>
+    <div class="toolbar__right">
+      <span class="sim-time">{{ simStore.formattedTime() }}</span>
+      <span class="sim-step">{{ simStore.formattedStep() }}</span>
+    </div>
+  </header>
 
-    <!-- Side panels -->
-    <aside class="side-panels">
-      <app-channel-profile [data]="profile()" />
-      <app-analytics-panel [history]="analytics()" />
+  <!-- ── Layer panel (left) ────────────────────────────────────────────── -->
+  @if (showLayers()) {
+    <aside class="hud panel-left">
+      <app-layer-panel></app-layer-panel>
     </aside>
-  </div>
-</section>
+  }
+
+  <!-- ── Simulation panel (right) ─────────────────────────────────────── -->
+  @if (showSimulation()) {
+    <aside class="hud panel-right">
+      <app-simulation-panel></app-simulation-panel>
+    </aside>
+  }
+
+  <!-- ── Inspector (click-to-query, bottom-centre) ────────────────────── -->
+  @if (pickEvent()) {
+    <div class="hud inspector-host">
+      <app-inspector-panel [event]="pickEvent()!" (close)="pickEvent.set(null)">
+      </app-inspector-panel>
+    </div>
+  }
+
+</div>

@@ -21,10 +21,10 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render the nav brand', () => {
+  it('should contain a router-outlet', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.nav__brand')?.textContent).toContain('Nalarbanjir');
+    expect(compiled.querySelector('router-outlet')).toBeTruthy();
   });
 });

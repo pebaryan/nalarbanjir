@@ -1,0 +1,54 @@
+<div class="panel">
+  <div class="panel__header">
+    <span class="panel__title">Simulation</span>
+    <span class="status-dot" [class.status-dot--running]="store.isRunning()"
+          [title]="store.status()"></span>
+  </div>
+
+  <!-- Mode selector -->
+  <div class="mode-tabs">
+    @for (m of modes; track m) {
+      <button class="mode-tab" [class.mode-tab--active]="selectedMode() === m"
+              (click)="selectedMode.set(m)">{{ m }}</button>
+    }
+  </div>
+
+  <!-- Steps config -->
+  <div class="config-row">
+    <label>Total steps
+      <input type="number" [ngModel]="steps()" (ngModelChange)="steps.set($event)"
+             min="1" max="100000" />
+    </label>
+    <label>Step N
+      <input type="number" [ngModel]="stepN()" (ngModelChange)="stepN.set($event)"
+             min="1" max="1000" />
+    </label>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="btn btn--primary" (click)="start()">Init</button>
+    <button class="btn" (click)="step()" [disabled]="store.isRunning()">+{{ stepN() }}</button>
+    <button class="btn btn--run"  (click)="run()"   [disabled]="store.isRunning()">▶ Run</button>
+    <button class="btn btn--warn" (click)="reset()">↺ Reset</button>
+  </div>
+
+  @if (errorMsg()) {
+    <div class="error">{{ errorMsg() }}</div>
+  }
+
+  <!-- Stats -->
+  @if (store.stats()) {
+    <div class="stats">
+      <div class="stat"><span class="stat__label">Time</span><span class="stat__value">{{ store.formattedTime() }}</span></div>
+      <div class="stat"><span class="stat__label">Step</span><span class="stat__value">{{ store.stepCount() }}</span></div>
+      <div class="stat"><span class="stat__label">Max depth</span><span class="stat__value">{{ store.maxDepthStr() }}</span></div>
+      <div class="stat"><span class="stat__label">Flooded</span><span class="stat__value">{{ store.floodedAreaStr() }}</span></div>
+    </div>
+  }
+
+  <!-- WS indicator -->
+  <div class="ws-status" [class.ws-status--connected]="store.isWsConnected()">
+    {{ store.isWsConnected() ? '● WS connected' : '○ WS disconnected' }}
+  </div>
+</div>

@@ -1,0 +1,184 @@
+.panel {
+  background:    rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  border:        1px solid rgba(51, 65, 85, 0.7);
+  border-radius: 10px;
+  display:       flex;
+  flex-direction: column;
+  overflow:      hidden;
+  max-height:    100%;
+  color:         #e2e8f0;
+  font-size:     0.8rem;
+
+  &__header {
+    display:         flex;
+    align-items:     center;
+    padding:         0.5rem 0.75rem;
+    border-bottom:   1px solid rgba(51, 65, 85, 0.5);
+    gap:             0.5rem;
+  }
+
+  &__title {
+    flex:        1;
+    font-weight: 600;
+    font-size:   0.85rem;
+    color:       #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__error {
+    padding:    0.4rem 0.75rem;
+    background: rgba(239, 68, 68, 0.15);
+    color:      #fca5a5;
+    font-size:  0.75rem;
+  }
+
+  &__empty {
+    padding:    1.5rem 1rem;
+    text-align: center;
+    color:      #475569;
+    font-size:  0.8rem;
+    line-height: 1.5;
+  }
+}
+
+.btn-add {
+  background:    rgba(56, 189, 248, 0.15);
+  border:        1px solid rgba(56, 189, 248, 0.3);
+  color:         #38bdf8;
+  border-radius: 4px;
+  width:         24px;
+  height:        24px;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  cursor:        pointer;
+  font-size:     1rem;
+  line-height:   1;
+  &:hover  { background: rgba(56, 189, 248, 0.25); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.spin { display: inline-block; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.layer-list {
+  list-style: none;
+  margin:  0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.layer-item {
+  display:     flex;
+  align-items: center;
+  gap:         0.35rem;
+  padding:     0.35rem 0.6rem;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+  cursor:      pointer;
+  transition:  background 0.12s;
+
+  &:hover           { background: rgba(51, 65, 85, 0.4); }
+  &--selected       { background: rgba(56, 189, 248, 0.08); }
+
+  .drag-handle {
+    color:  #475569;
+    cursor: grab;
+    font-size: 1rem;
+    &:active { cursor: grabbing; }
+  }
+
+  .eye-btn {
+    background: none; border: none;
+    cursor: pointer; padding: 0;
+    font-size: 0.9rem; opacity: 0.8;
+    &:hover { opacity: 1; }
+  }
+
+  .layer-name {
+    flex:       1;
+    display:    flex;
+    align-items: center;
+    gap:        0.3rem;
+    overflow:   hidden;
+    min-width:  0;
+  }
+
+  .layer-icon { flex-shrink: 0; font-size: 0.85rem; }
+
+  .layer-text {
+    flex:          1;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+    white-space:   nowrap;
+    font-size:     0.8rem;
+    color:         #cbd5e1;
+  }
+
+  .layer-type {
+    flex-shrink: 0;
+    font-size:   0.65rem;
+    color:       #475569;
+    background:  rgba(51, 65, 85, 0.5);
+    padding:     1px 4px;
+    border-radius: 3px;
+  }
+
+  .opacity-slider {
+    width:  56px;
+    height: 3px;
+    cursor: pointer;
+    accent-color: #38bdf8;
+    flex-shrink: 0;
+  }
+
+  .del-btn {
+    background:  none;
+    border:      none;
+    color:       #475569;
+    cursor:      pointer;
+    padding:     0;
+    font-size:   0.75rem;
+    flex-shrink: 0;
+    &:hover { color: #ef4444; }
+  }
+}
+
+.layer-config {
+  display:        flex;
+  flex-wrap:      wrap;
+  gap:            0.5rem;
+  padding:        0.5rem 0.75rem 0.6rem 2.5rem;
+  background:     rgba(30, 41, 59, 0.6);
+  border-bottom:  1px solid rgba(51, 65, 85, 0.3);
+
+  label {
+    display:        flex;
+    flex-direction: column;
+    gap:            0.2rem;
+    font-size:      0.7rem;
+    color:          #94a3b8;
+
+    select, input[type="number"] {
+      background:    rgba(15, 23, 42, 0.8);
+      border:        1px solid #334155;
+      color:         #e2e8f0;
+      border-radius: 4px;
+      padding:       2px 4px;
+      font-size:     0.75rem;
+      width:         80px;
+    }
+
+    input[type="color"] {
+      width:  40px;
+      height: 22px;
+      padding: 1px;
+      border:  1px solid #334155;
+      border-radius: 4px;
+      cursor:  pointer;
+      background: rgba(15, 23, 42, 0.8);
+    }
+  }
+}

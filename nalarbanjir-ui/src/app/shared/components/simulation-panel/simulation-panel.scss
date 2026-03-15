@@ -1,0 +1,145 @@
+.panel {
+  background:    rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  border:        1px solid rgba(51, 65, 85, 0.7);
+  border-radius: 10px;
+  padding:       0;
+  color:         #e2e8f0;
+  font-size:     0.8rem;
+  overflow:      hidden;
+
+  &__header {
+    display:       flex;
+    align-items:   center;
+    padding:       0.5rem 0.75rem;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+    gap:           0.5rem;
+  }
+
+  &__title {
+    flex:           1;
+    font-weight:    600;
+    font-size:      0.85rem;
+    color:          #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+.status-dot {
+  width:         8px;
+  height:        8px;
+  border-radius: 50%;
+  background:    #334155;
+  &--running { background: #22c55e; box-shadow: 0 0 6px #22c55e; animation: pulse 1.5s infinite; }
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.mode-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.mode-tab {
+  flex:         1;
+  background:   none;
+  border:       none;
+  color:        #64748b;
+  padding:      0.4rem;
+  cursor:       pointer;
+  font-size:    0.78rem;
+  font-weight:  500;
+  transition:   all 0.15s;
+  &:hover      { color: #94a3b8; background: rgba(51,65,85,0.3); }
+  &--active    { color: #38bdf8; background: rgba(56,189,248,0.1); border-bottom: 2px solid #38bdf8; }
+}
+
+.config-row {
+  display:    flex;
+  gap:        0.5rem;
+  padding:    0.5rem 0.75rem;
+
+  label {
+    display:        flex;
+    flex-direction: column;
+    gap:            0.2rem;
+    flex:           1;
+    color:          #94a3b8;
+    font-size:      0.72rem;
+
+    input {
+      background:    rgba(15, 23, 42, 0.8);
+      border:        1px solid #334155;
+      color:         #e2e8f0;
+      border-radius: 4px;
+      padding:       3px 5px;
+      font-size:     0.78rem;
+      width:         100%;
+    }
+  }
+}
+
+.controls {
+  display:    flex;
+  gap:        0.4rem;
+  padding:    0 0.75rem 0.6rem;
+  flex-wrap:  wrap;
+}
+
+.btn {
+  flex:          1;
+  padding:       0.35rem 0.5rem;
+  border-radius: 5px;
+  border:        1px solid #334155;
+  background:    rgba(51, 65, 85, 0.4);
+  color:         #cbd5e1;
+  cursor:        pointer;
+  font-size:     0.75rem;
+  font-weight:   500;
+  transition:    all 0.15s;
+  white-space:   nowrap;
+  &:hover:not(:disabled)  { background: rgba(51,65,85,0.7); color: #e2e8f0; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  &--primary { border-color: #38bdf8; color: #38bdf8; background: rgba(56,189,248,0.1);
+               &:hover { background: rgba(56,189,248,0.2); } }
+  &--run     { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.1);
+               &:hover:not(:disabled) { background: rgba(34,197,94,0.2); } }
+  &--warn    { border-color: #f97316; color: #f97316; background: rgba(249,115,22,0.1);
+               &:hover { background: rgba(249,115,22,0.2); } }
+}
+
+.error {
+  margin:     0 0.75rem 0.5rem;
+  padding:    0.35rem 0.5rem;
+  background: rgba(239, 68, 68, 0.12);
+  border:     1px solid rgba(239, 68, 68, 0.3);
+  color:      #fca5a5;
+  border-radius: 4px;
+  font-size:  0.72rem;
+}
+
+.stats {
+  display:       grid;
+  grid-template-columns: 1fr 1fr;
+  gap:           0.3rem;
+  padding:       0.5rem 0.75rem;
+  border-top:    1px solid rgba(51, 65, 85, 0.5);
+}
+
+.stat {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.1rem;
+
+  &__label { font-size: 0.65rem; color: #475569; }
+  &__value { font-size: 0.8rem;  color: #e2e8f0; font-weight: 500; font-variant-numeric: tabular-nums; }
+}
+
+.ws-status {
+  padding:    0.35rem 0.75rem;
+  font-size:  0.68rem;
+  color:      #475569;
+  border-top: 1px solid rgba(51, 65, 85, 0.3);
+  &--connected { color: #22c55e; }
+}

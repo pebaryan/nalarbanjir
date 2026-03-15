@@ -1,0 +1,86 @@
+<div class="panel">
+  <div class="panel__header">
+    <span class="panel__title">Layers</span>
+    <button class="btn-add" (click)="openFilePicker()" [disabled]="uploading()" title="Upload DEM / GIS file">
+      @if (uploading()) { <span class="spin">⟳</span> } @else { + }
+    </button>
+    <input #fileInput type="file" accept=".tif,.tiff,.asc,.shp,.geojson,.json"
+           style="display:none" (change)="onFileSelected($event)" />
+  </div>
+
+  @if (uploadErr()) {
+    <div class="panel__error">{{ uploadErr() }}</div>
+  }
+
+  <ul class="layer-list">
+    @for (layer of store.orderedLayers(); track trackById($index, layer)) {
+      <li class="layer-item"
+          [class.layer-item--selected]="store.selectedLayerId() === layer.id"
+          draggable="true"
+          (dragstart)="onDragStart(layer.id)"
+          (dragover)="onDragOver($event)"
+          (drop)="onDrop(layer.id)">
+
+        <!-- Drag handle -->
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+
+        <!-- Visibility toggle -->
+        <button class="eye-btn" (click)="toggleVisibility(layer)" [title]="layer.visibility ? 'Hide' : 'Show'">
+          {{ layer.visibility ? '👁' : '🙈' }}
+        </button>
+
+        <!-- Type icon + name (click → select/expand config) -->
+        <div class="layer-name" (click)="toggleSelect(layer.id)">
+          <span class="layer-icon">{{ layerTypeIcon[layer.type] ?? '🗂' }}</span>
+          <span class="layer-text" [title]="layer.name">{{ layer.name }}</span>
+          <span class="layer-type">{{ layer.type }}</span>
+        </div>
+
+        <!-- Opacity -->
+        <input class="opacity-slider" type="range" min="0" max="1" step="0.05"
+               [value]="layer.opacity"
+               (input)="setOpacity(layer, +$any($event.target).value)" />
+
+        <!-- Delete -->
+        <button class="del-btn" (click)="remove(layer, $event)" title="Remove layer">✕</button>
+      </li>
+
+      <!-- Inline config drawer -->
+      @if (store.selectedLayerId() === layer.id) {
+        <li class="layer-config">
+          <label>Colormap
+            <select [ngModel]="layer.style.colormap"
+                    (ngModelChange)="updateStyle(layer, 'colormap', $event)">
+              @for (cm of colormaps; track cm) {
+                <option [value]="cm">{{ cm }}</option>
+              }
+            </select>
+          </label>
+
+          <label>Min
+            <input type="number" [ngModel]="layer.style.range_min"
+                   (ngModelChange)="updateStyle(layer, 'range_min', $event === '' ? null : +$event)"
+                   placeholder="auto" />
+          </label>
+
+          <label>Max
+            <input type="number" [ngModel]="layer.style.range_max"
+                   (ngModelChange)="updateStyle(layer, 'range_max', $event === '' ? null : +$event)"
+                   placeholder="auto" />
+          </label>
+
+          @if (layer.type === 'vector' || layer.type === 'channel') {
+            <label>Colour
+              <input type="color" [ngModel]="layer.style.color"
+                     (ngModelChange)="updateStyle(layer, 'color', $event)" />
+            </label>
+          }
+        </li>
+      }
+    }
+  </ul>
+
+  @if (store.orderedLayers().length === 0 && !store.loading()) {
+    <div class="panel__empty">No layers yet.<br>Upload a DEM or start a simulation.</div>
+  }
+</div>

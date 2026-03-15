@@ -564,26 +564,54 @@ async def get_elevation_grid(
         raise HTTPException(status_code=400, detail="File is not a raster DTM")
 
     dtm = stored["data"]
-    elev = dtm.elevation_data  # shape (ny, nx) — standard raster (rows first)
+    elev = dtm.elevation_data  # shape (raw_ny, raw_nx) — rasterio row-major
 
     raw_ny, raw_nx = elev.shape
 
     # Downsample so the larger dimension ≤ max_size
     stride = max(1, max(raw_nx, raw_ny) // max_size)
-    elev_ds = elev[::stride, ::stride]          # still (ny_ds, nx_ds)
+    elev_ds = elev[::stride, ::stride]   # (ny_ds, nx_ds)
     ny_ds, nx_ds = elev_ds.shape
 
-    dx = dtm.resolution[0] * stride
-    dy = dtm.resolution[1] * stride
+    # ── Scene cell size in metres ──────────────────────────────────────────
+    # rasterio res = (y_pixel_size, x_pixel_size) in CRS units.
+    # If the CRS is geographic (degrees) we must convert to metres so that
+    # the horizontal extent matches the elevation values (always in metres).
+    bounds = dtm.bounds
+    try:
+        from pyproj import Transformer
+        crs_epsg = (dtm.crs.epsg_code if hasattr(dtm.crs, "epsg_code")
+                    else int(str(dtm.crs).lstrip("EPSG:")))
+        is_geo = getattr(dtm.crs, "is_geographic", lambda: False)()
+        if is_geo:
+            t = Transformer.from_crs(crs_epsg, 3857, always_xy=True)
+            x0, y0 = t.transform(bounds.min_x, bounds.min_y)
+            x1, y1 = t.transform(bounds.max_x, bounds.max_y)
+            scene_w_m = abs(x1 - x0)
+            scene_h_m = abs(y1 - y0)
+        else:
+            scene_w_m = abs(bounds.max_x - bounds.min_x)
+            scene_h_m = abs(bounds.max_y - bounds.min_y)
+    except Exception:
+        scene_w_m = abs(bounds.max_x - bounds.min_x)
+        scene_h_m = abs(bounds.max_y - bounds.min_y)
 
-    # Replace nodata with the mean of valid cells
+    dx = scene_w_m / nx_ds   # metres per scene column
+    dy = scene_h_m / ny_ds   # metres per scene row
+
+    # ── Nodata replacement ────────────────────────────────────────────────
     nodata = dtm.nodata_value
-    valid  = elev_ds[elev_ds != nodata]
-    fill   = float(valid.mean()) if len(valid) > 0 else 0.0
-    elev_clean = np.where(elev_ds == nodata, fill, elev_ds).astype(float)
+    # Use np.isclose for float nodata; also catch very large sentinel values
+    nodata_mask = (np.abs(elev_ds - nodata) < 1e-3) | (elev_ds < -9000)
+    valid = elev_ds[~nodata_mask]
+    fill  = float(valid.mean()) if len(valid) > 0 else 0.0
+    elev_clean = np.where(nodata_mask, fill, elev_ds).astype(float)
 
-    # Transpose to (nx_ds, ny_ds) so elevation[i][j] = elev at col i, row j
-    elev_t = elev_clean.T  # shape (nx_ds, ny_ds)
+    # ── Flip rows: rasterio row-0 = max_y (north); viewer j=0 = min_y (south)
+    elev_clean = elev_clean[::-1, :]
+
+    # ── Transpose to (nx_ds, ny_ds): elevation[i][j] = elev at col i, row j
+    elev_t = elev_clean.T
 
     return JSONResponse(content={
         "file_id": file_id,
@@ -591,10 +619,10 @@ async def get_elevation_grid(
         "ny":  ny_ds,
         "dx":  dx,
         "dy":  dy,
-        "min_x": float(dtm.bounds.min_x),
-        "min_y": float(dtm.bounds.min_y),
-        "max_x": float(dtm.bounds.max_x),
-        "max_y": float(dtm.bounds.max_y),
+        "min_x": float(bounds.min_x),
+        "min_y": float(bounds.min_y),
+        "max_x": float(bounds.max_x),
+        "max_y": float(bounds.max_y),
         "elevation": elev_t.tolist(),
     })
 

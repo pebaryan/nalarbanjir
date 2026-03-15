@@ -42,7 +42,11 @@ export const LayerStore = signalStore(
     ),
   })),
 
-  withMethods((store, api = inject(LayerApiService)) => ({
+  withMethods((store, api = inject(LayerApiService)) => {
+    // IDs of layers created locally (via upsertLocalLayer) — never persisted to backend
+    const localIds = new Set<string>();
+
+    return {
 
     loadLayers(): void {
       patchState(store, { loading: true });
@@ -71,12 +75,15 @@ export const LayerStore = signalStore(
     },
 
     removeLayer(id: string): void {
-      // Optimistic removal — works for local-only layers (404 from API is fine)
       patchState(store, {
         layers:          store.layers().filter(l => l.id !== id),
         selectedLayerId: store.selectedLayerId() === id ? null : store.selectedLayerId(),
       });
-      api.deleteLayer(id).subscribe({ error: () => {} });
+      if (localIds.has(id)) {
+        localIds.delete(id);
+      } else {
+        api.deleteLayer(id).subscribe({ error: () => {} });
+      }
     },
 
     reorderLayers(orderedIds: string[]): void {
@@ -93,6 +100,7 @@ export const LayerStore = signalStore(
 
     /** Upsert a layer without hitting the API (for auto-created sim layers). */
     upsertLocalLayer(layer: Layer): void {
+      localIds.add(layer.id);
       const exists = store.layers().some(l => l.id === layer.id);
       if (exists) {
         patchState(store, { layers: store.layers().map(l => l.id === layer.id ? layer : l) });
@@ -101,5 +109,6 @@ export const LayerStore = signalStore(
       }
     },
 
-  })),
+  };
+  }),
 );

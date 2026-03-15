@@ -27,6 +27,7 @@ class RunRequest(BaseModel):
     steps: int = Field(1000, gt=0, le=100_000, description="Number of simulation steps")
     rainfall: RainfallParams = Field(default_factory=RainfallParams)
     broadcast_interval: int = Field(5, gt=0, description="Emit WebSocket update every N steps")
+    dem_file_id: str | None = Field(None, description="GIS file_id of a DEM to use as solver terrain")
 
     model_config = {
         "json_schema_extra": {

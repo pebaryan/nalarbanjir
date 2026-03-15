@@ -57,6 +57,14 @@ async def start(body: RunRequest, request: Request) -> StartResponse:
 
     engine = SimulationEngine(mode=mode, config=cfg)
 
+    # Load DEM terrain if provided
+    bed_elev, dem_dx, dem_dy = None, None, None
+    if body.dem_file_id and mode in ("2d", "1d2d"):
+        bed_elev, dem_dx, dem_dy = _load_dem_for_solver(
+            body.dem_file_id, cfg.physics.solver_2d.nx, cfg.physics.solver_2d.ny,
+            request.app.state,
+        )
+
     if mode in ("1d", "1d2d"):
         from src.physics.solver_1d.cross_section import CrossSection
         from src.physics.solver_1d.network import ChannelNetwork
@@ -72,9 +80,9 @@ async def start(body: RunRequest, request: Request) -> StartResponse:
             upstream_Q=50.0,
             downstream_h=4.0,
         )
-        engine.initialize(network=network)
+        engine.initialize(network=network, bed_elevation=bed_elev, dx=dem_dx, dy=dem_dy)
     else:
-        engine.initialize()
+        engine.initialize(bed_elevation=bed_elev, dx=dem_dx, dy=dem_dy)
 
     # Apply rainfall to the 2D solver (was previously ignored)
     if mode in ("2d", "1d2d") and engine._solver_2d is not None:
@@ -153,6 +161,85 @@ async def reset(
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
+
+def _load_dem_for_solver(
+    file_id: str,
+    nx: int,
+    ny: int,
+    app_state,
+) -> tuple[np.ndarray, float, float]:
+    """
+    Load a DTM from gis_storage, resample it to (nx, ny), and return
+    (bed_elevation, dx_m, dy_m) ready for Solver2D.initialize().
+
+    bed_elevation shape is (nx, ny) with orientation matching the solver
+    convention: index [i, j] = column i (x), row j (y), j=0 = south.
+    """
+    gis = app_state.gis_storage
+    if file_id not in gis:
+        raise ValueError(f"DEM file_id '{file_id}' not found in storage")
+
+    stored = gis[file_id]
+    if stored["type"] != "dtm":
+        raise ValueError(f"file_id '{file_id}' is not a raster DTM")
+
+    dtm = stored["data"]
+    raw = dtm.elevation_data       # (raw_ny, raw_nx) rasterio row-major
+    bounds = dtm.bounds
+
+    # ── Domain size in metres ─────────────────────────────────────────────
+    try:
+        from pyproj import Transformer
+        crs_epsg = (dtm.crs.epsg_code if hasattr(dtm.crs, "epsg_code")
+                    else int(str(dtm.crs).lstrip("EPSG:")))
+        if getattr(dtm.crs, "is_geographic", lambda: False)():
+            t = Transformer.from_crs(crs_epsg, 3857, always_xy=True)
+            x0, y0 = t.transform(bounds.min_x, bounds.min_y)
+            x1, y1 = t.transform(bounds.max_x, bounds.max_y)
+            w_m, h_m = abs(x1 - x0), abs(y1 - y0)
+        else:
+            w_m = abs(bounds.max_x - bounds.min_x)
+            h_m = abs(bounds.max_y - bounds.min_y)
+    except Exception:
+        w_m = abs(bounds.max_x - bounds.min_x)
+        h_m = abs(bounds.max_y - bounds.min_y)
+
+    dx_m = w_m / nx
+    dy_m = h_m / ny
+
+    # ── Nodata → fill ──────────────────────────────────────────────────────
+    raw_f = raw.astype(float)
+    nodata_mask = np.isnan(raw_f) | (raw_f < -9000) | (raw_f > 1e30)
+    if not np.isnan(dtm.nodata_value):
+        nodata_mask |= np.isclose(raw_f, dtm.nodata_value, rtol=0, atol=1.0)
+    fill = float(np.nanmean(raw_f[~nodata_mask])) if nodata_mask.any() else 0.0
+    raw_f[nodata_mask] = fill
+
+    # ── Flip rows so row 0 = south (match solver j=0 convention) ──────────
+    raw_f = raw_f[::-1, :]     # now (raw_ny, raw_nx), row 0 = south
+
+    # ── Resample to (ny, nx) ───────────────────────────────────────────────
+    raw_ny, raw_nx = raw_f.shape
+    try:
+        from scipy.ndimage import zoom
+        resampled = zoom(raw_f, (ny / raw_ny, nx / raw_nx), order=1)
+    except ImportError:
+        # Nearest-neighbour fallback (numpy only)
+        yi = np.linspace(0, raw_ny - 1, ny, dtype=int)
+        xi = np.linspace(0, raw_nx - 1, nx, dtype=int)
+        resampled = raw_f[np.ix_(yi, xi)]
+
+    # ── Transpose to solver convention: [i, j] = [col, row] = [x, y] ─────
+    bed = resampled.T.astype(float)    # (nx, ny)
+    assert bed.shape == (nx, ny)
+
+    logger.info(
+        "DEM loaded for solver: file_id=%s  domain=%.0fx%.0fm  "
+        "dx=%.1fm dy=%.1fm  elev=%.1f–%.1fm",
+        file_id, w_m, h_m, dx_m, dy_m, bed.min(), bed.max(),
+    )
+    return bed, dx_m, dy_m
+
 
 def _apply_rainfall(solver: Solver2D, params: RainfallParams, cfg: NalarbanjirConfig) -> None:
     """Compute and set the rainfall source array on the 2D solver."""

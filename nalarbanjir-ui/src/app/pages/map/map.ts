@@ -60,6 +60,9 @@ export class MapPage implements OnInit, OnDestroy {
 
   // Raw grids from API (used to feed the viewer)
   private elevationGrid: number[][] | null = null;
+  // Solver domain in metres — updated when terrain mesh is loaded after init
+  private solverDomainX = 10000;
+  private solverDomainY = 10000;
   private subs: Subscription[] = [];
 
   // Project import/export state
@@ -74,6 +77,8 @@ export class MapPage implements OnInit, OnDestroy {
       if (count === 0) return;   // skip the initial value
       this.api.getTerrainMesh().subscribe(mesh => {
         this.elevationGrid = mesh.elevation;
+        this.solverDomainX = mesh.nx * mesh.dx;
+        this.solverDomainY = mesh.ny * mesh.dy;
         this.elevationCache.set('sim:terrain', {
           elevation: mesh.elevation, nx: mesh.nx, ny: mesh.ny,
           dx: mesh.dx, dy: mesh.dy,
@@ -209,6 +214,8 @@ export class MapPage implements OnInit, OnDestroy {
 
     this.api.getTerrainMesh().subscribe(mesh => {
       this.elevationGrid = mesh.elevation;
+      this.solverDomainX = mesh.nx * mesh.dx;
+      this.solverDomainY = mesh.ny * mesh.dy;
       // Cache synthetic terrain so style-change re-renders work for it too
       this.elevationCache.set('sim:terrain', {
         elevation: mesh.elevation, nx: mesh.nx, ny: mesh.ny,
@@ -250,6 +257,11 @@ export class MapPage implements OnInit, OnDestroy {
             });
           }
 
+          // dx/dy derived from solver domain so flood overlay covers the same
+          // extent as the terrain mesh (whether synthetic or DEM-backed)
+          const floodDx = this.solverDomainX / nx;
+          const floodDy = this.solverDomainY / ny;
+
           const fdLayer = this.layerStore.floodDepthLayer();
           if (fdLayer) {
             this.svc.setFloodLayer(
@@ -257,7 +269,7 @@ export class MapPage implements OnInit, OnDestroy {
               { visibility: fdLayer.visibility, opacity: fdLayer.opacity, colormap: fdLayer.style.colormap,
                 rangeMin: fdLayer.style.range_min, rangeMax: fdLayer.style.range_max, color: fdLayer.style.color },
               s2d.water_depth, this.elevationGrid,
-              nx, ny, 100, 100,
+              nx, ny, floodDx, floodDy,
             );
           }
 
@@ -267,7 +279,7 @@ export class MapPage implements OnInit, OnDestroy {
               'sim_flood_risk',
               { visibility: riskLayer.visibility, opacity: riskLayer.opacity, colormap: 'risk',
                 rangeMin: 0, rangeMax: 4, color: '#ef4444' },
-              s2d.flood_risk, nx, ny, 100, 100, this.elevationGrid,
+              s2d.flood_risk, nx, ny, floodDx, floodDy, this.elevationGrid,
             );
           }
         }

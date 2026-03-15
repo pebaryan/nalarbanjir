@@ -67,9 +67,15 @@ export class SimulationPanel implements OnInit, OnDestroy {
   start(): void {
     this.errorMsg.set('');
     const intensityMs = this.rainfallMmHr() / 1_000 / 3_600;  // mm/hr → m/s
+
+    // Pass the active uploaded DEM as solver terrain (non-sim: data_ref = file_id)
+    const activeDem = this.layers.demLayers()
+      .find(l => l.data_ref && !l.data_ref.startsWith('sim:'));
+
     this.api.startSimulation({
-      mode:  this.selectedMode(),
-      steps: this.steps(),
+      mode:        this.selectedMode(),
+      steps:       this.steps(),
+      dem_file_id: activeDem?.data_ref ?? undefined,
       rainfall: {
         pattern:   this.rainfallPattern(),
         intensity: intensityMs,

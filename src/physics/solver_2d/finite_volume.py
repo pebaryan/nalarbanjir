@@ -84,6 +84,8 @@ class Solver2D:
         bed_elevation: np.ndarray | None = None,
         manning_n: np.ndarray | None = None,
         initial_depth: np.ndarray | float | None = None,
+        dx: float | None = None,
+        dy: float | None = None,
     ) -> None:
         """
         Set up initial conditions and allocate arrays.
@@ -96,6 +98,11 @@ class Solver2D:
             initial_depth: Initial water depth h [m]. Scalar or (nx, ny).
                            If None, uses terrain.initial_water_depth from config.
         """
+        if dx is not None:
+            self.dx = float(dx)
+        if dy is not None:
+            self.dy = float(dy)
+
         nx, ny = self.nx, self.ny
 
         # Bed elevation

@@ -72,6 +72,9 @@ class SimulationEngine:
         self,
         network: ChannelNetwork | None = None,
         interface: BankInterface | None = None,
+        bed_elevation: np.ndarray | None = None,
+        dx: float | None = None,
+        dy: float | None = None,
     ) -> None:
         """
         Initialize solver(s) and reset time to zero.
@@ -91,7 +94,7 @@ class SimulationEngine:
 
         if self._mode in ("2d", "1d2d"):
             self._solver_2d = Solver2D(config=self._cfg)
-            self._solver_2d.initialize()
+            self._solver_2d.initialize(bed_elevation=bed_elevation, dx=dx, dy=dy)
 
         if self._mode == "1d2d":
             self._interface = interface or BankInterface(points=[])

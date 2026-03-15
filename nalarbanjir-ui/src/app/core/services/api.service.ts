@@ -8,6 +8,7 @@ export interface RunRequest {
   mode: SimulationMode;
   steps: number;
   broadcast_interval?: number;
+  dem_file_id?: string;
   rainfall?: {
     pattern:   'uniform' | 'storm_cell' | 'frontal';
     intensity: number;

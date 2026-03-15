@@ -26,6 +26,8 @@ import tempfile
 import threading
 import time
 import uuid
+
+import numpy as np
 from pathlib import Path
 from typing import Optional
 
@@ -111,10 +113,10 @@ async def upload_gis_file(
                 "resolution": dtm.resolution,
                 "dimensions": {"width": dtm.width, "height": dtm.height},
                 "elevation_stats": {
-                    "min":  float(dtm.elevation_data.min()),
-                    "max":  float(dtm.elevation_data.max()),
-                    "mean": float(dtm.elevation_data.mean()),
-                    "std":  float(dtm.elevation_data.std()),
+                    "min":  float(np.nanmin(dtm.elevation_data)),
+                    "max":  float(np.nanmax(dtm.elevation_data)),
+                    "mean": float(np.nanmean(dtm.elevation_data)),
+                    "std":  float(np.nanstd(dtm.elevation_data)),
                 },
             }
             _gis(request)[file_id] = {"type": "dtm", "data": dtm, "filename": file.filename}
@@ -553,8 +555,6 @@ async def get_elevation_grid(
 
     elevation[i][j] = elevation at scene x = i*dx, z = j*dy  (nx outer, ny inner).
     """
-    import numpy as np
-
     gis = _gis(request)
     if file_id not in gis:
         raise HTTPException(status_code=404, detail="File not found")
@@ -600,11 +600,17 @@ async def get_elevation_grid(
     dy = scene_h_m / ny_ds   # metres per scene row
 
     # ── Nodata replacement ────────────────────────────────────────────────
+    # Nodata is now stored as NaN in the importer, but defend against legacy
+    # files that still have a numeric sentinel.
     nodata = dtm.nodata_value
-    # Use np.isclose for float nodata; also catch very large sentinel values
-    nodata_mask = (np.abs(elev_ds - nodata) < 1e-3) | (elev_ds < -9000)
+    nodata_mask = np.isnan(elev_ds)                         # primary: NaN
+    if not np.isnan(nodata):                                # legacy numeric sentinel
+        nodata_mask |= np.isclose(elev_ds, nodata, rtol=0, atol=1.0)
+    nodata_mask |= elev_ds < -9000                          # catch -9999 family
+    nodata_mask |= elev_ds > 1e30                           # catch float32-max family
+
     valid = elev_ds[~nodata_mask]
-    fill  = float(valid.mean()) if len(valid) > 0 else 0.0
+    fill  = float(np.nanmean(elev_ds)) if len(valid) == 0 else float(valid.mean())
     elev_clean = np.where(nodata_mask, fill, elev_ds).astype(float)
 
     # ── Flip rows: rasterio row-0 = max_y (north); viewer j=0 = min_y (south)

@@ -101,8 +101,10 @@ class GISImporter:
             raise GISImportError("rasterio package required for GeoTIFF import")
 
         with rasterio.open(filepath) as src:
-            # Read elevation data
-            elevation = src.read(1)  # Read first band
+            # Read as a masked array so rasterio applies the nodata mask for us
+            elevation_masked = src.read(1, masked=True)
+            # Convert to float32 and fill masked (nodata) cells with NaN
+            elevation = elevation_masked.filled(np.nan).astype(np.float32)
 
             # Get CRS
             crs = src.crs
@@ -121,9 +123,6 @@ class GISImporter:
             # Get resolution
             resolution = (src.res[0], src.res[1])
 
-            # Get nodata value
-            nodata = src.nodata if src.nodata is not None else -9999.0
-
             # Reproject if needed
             if target_crs and target_crs != epsg_code:
                 elevation, bbox = self._reproject_raster(
@@ -134,13 +133,13 @@ class GISImporter:
             # Create CRS object
             crs_obj = SpatialReferenceSystem(epsg_code=epsg_code)
 
-            # Create DTM
+            # Create DTM — NaN marks nodata cells throughout the pipeline
             dtm = DigitalTerrainModel(
-                elevation_data=elevation.astype(np.float32),
+                elevation_data=elevation,
                 bounds=bbox,
                 resolution=resolution,
                 crs=crs_obj,
-                nodata_value=float(nodata),
+                nodata_value=float("nan"),
                 metadata={
                     "source_file": str(filepath),
                     "bands": src.count,
@@ -172,10 +171,11 @@ class GISImporter:
 
         # rasterio can read ASCII grids directly
         with rasterio.open(filepath) as src:
-            elevation = src.read(1)
+            elevation_masked = src.read(1, masked=True)
+            elevation = elevation_masked.filled(np.nan).astype(np.float32)
 
-            # ASCII grids don't always have CRS, default to None
-            epsg_code = 4326  # Default to WGS84
+            # ASCII grids don't always have CRS, default to WGS84
+            epsg_code = 4326
 
             bounds = src.bounds
             bbox = BoundingBox(
@@ -187,16 +187,14 @@ class GISImporter:
             )
 
             resolution = (src.res[0], src.res[1])
-            nodata = src.nodata if src.nodata is not None else -9999.0
-
             crs_obj = SpatialReferenceSystem(epsg_code=epsg_code)
 
             dtm = DigitalTerrainModel(
-                elevation_data=elevation.astype(np.float32),
+                elevation_data=elevation,
                 bounds=bbox,
                 resolution=resolution,
                 crs=crs_obj,
-                nodata_value=float(nodata),
+                nodata_value=float("nan"),
                 metadata={"source_file": str(filepath), "format": "ASCII Grid"},
             )
 

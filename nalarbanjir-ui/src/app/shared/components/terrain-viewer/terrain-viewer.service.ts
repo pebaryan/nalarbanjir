@@ -61,7 +61,8 @@ export class TerrainViewerService {
   private demBounds: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
 
   private orbit = { theta: 0.8, phi: 1.0, radius: 8000, targetX: 0, targetZ: 0 };
-  private drag   = { active: false, right: false, lastX: 0, lastY: 0, downX: 0, downY: 0 };
+  private drag  = { active: false, pan: false, lastX: 0, lastY: 0, downX: 0, downY: 0 };
+  private touch = { lastDist: 0, lastMidX: 0, lastMidY: 0 };
 
   readonly pick$ = new Subject<PickEvent>();
 
@@ -490,31 +491,34 @@ export class TerrainViewerService {
   // ── Orbit controls (no external library) ───────────────────────────────
 
   private _setupOrbit(canvas: HTMLCanvasElement): void {
+    // ── Mouse ──────────────────────────────────────────────────────────────
     canvas.addEventListener('mousedown', e => {
-      this.drag = { active: true, right: e.button === 2, lastX: e.clientX, lastY: e.clientY, downX: e.clientX, downY: e.clientY };
+      // left=0 → rotate | middle=1 or right=2 → pan
+      const pan = e.button === 1 || e.button === 2;
+      this.drag = { active: true, pan, lastX: e.clientX, lastY: e.clientY, downX: e.clientX, downY: e.clientY };
+      canvas.style.cursor = pan ? 'move' : 'grabbing';
     });
 
     canvas.addEventListener('mousemove', e => {
       if (!this.drag.active) return;
-      const dxM = e.clientX - this.drag.lastX;
-      const dyM = e.clientY - this.drag.lastY;
+      const dx = e.clientX - this.drag.lastX;
+      const dy = e.clientY - this.drag.lastY;
       this.drag.lastX = e.clientX;
       this.drag.lastY = e.clientY;
 
-      if (this.drag.right) {
-        const s = this.orbit.radius * 0.0012;
-        this.orbit.targetX -= dxM * s * Math.cos(this.orbit.theta);
-        this.orbit.targetZ -= dxM * s * Math.sin(this.orbit.theta);
-        this.orbit.targetX += dyM * s * Math.sin(this.orbit.theta) * Math.cos(this.orbit.phi);
-        this.orbit.targetZ -= dyM * s * Math.cos(this.orbit.theta) * Math.cos(this.orbit.phi);
+      if (this.drag.pan) {
+        this._pan(dx, dy);
       } else {
-        this.orbit.theta -= dxM * 0.007;
-        this.orbit.phi    = Math.max(0.05, Math.min(Math.PI / 2 - 0.02, this.orbit.phi - dyM * 0.007));
+        this.orbit.theta -= dx * 0.007;
+        this.orbit.phi    = Math.max(0.05, Math.min(Math.PI / 2 - 0.02, this.orbit.phi - dy * 0.007));
       }
       this._applyOrbit();
     });
 
-    const stop = () => { this.drag.active = false; };
+    const stop = () => {
+      this.drag.active = false;
+      canvas.style.cursor = 'grab';
+    };
     canvas.addEventListener('mouseup',    stop);
     canvas.addEventListener('mouseleave', stop);
 
@@ -525,7 +529,65 @@ export class TerrainViewerService {
     }, { passive: false });
 
     canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    // ── Touch ──────────────────────────────────────────────────────────────
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        this.drag = { active: true, pan: false, lastX: t.clientX, lastY: t.clientY, downX: t.clientX, downY: t.clientY };
+      } else if (e.touches.length === 2) {
+        this.drag.active = false;
+        const [a, b] = [e.touches[0], e.touches[1]];
+        this.touch.lastDist = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+        this.touch.lastMidX = (a.clientX + b.clientX) / 2;
+        this.touch.lastMidY = (a.clientY + b.clientY) / 2;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (e.touches.length === 1 && this.drag.active) {
+        const t = e.touches[0];
+        const dx = t.clientX - this.drag.lastX;
+        const dy = t.clientY - this.drag.lastY;
+        this.drag.lastX = t.clientX;
+        this.drag.lastY = t.clientY;
+        this.orbit.theta -= dx * 0.007;
+        this.orbit.phi    = Math.max(0.05, Math.min(Math.PI / 2 - 0.02, this.orbit.phi - dy * 0.007));
+        this._applyOrbit();
+      } else if (e.touches.length === 2) {
+        const [a, b] = [e.touches[0], e.touches[1]];
+        const dist   = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+        const midX   = (a.clientX + b.clientX) / 2;
+        const midY   = (a.clientY + b.clientY) / 2;
+
+        // Pinch → zoom
+        if (this.touch.lastDist > 0) {
+          this.orbit.radius = Math.max(50, Math.min(2e5, this.orbit.radius * (this.touch.lastDist / dist)));
+        }
+        // Two-finger drag → pan
+        this._pan(midX - this.touch.lastMidX, midY - this.touch.lastMidY);
+
+        this.touch.lastDist = dist;
+        this.touch.lastMidX = midX;
+        this.touch.lastMidY = midY;
+        this._applyOrbit();
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => { this.drag.active = false; this.touch.lastDist = 0; });
+
+    canvas.style.cursor = 'grab';
     this._applyOrbit();
+  }
+
+  private _pan(dxPx: number, dyPx: number): void {
+    const s = this.orbit.radius * 0.0012;
+    this.orbit.targetX -= dxPx * s * Math.cos(this.orbit.theta);
+    this.orbit.targetZ -= dxPx * s * Math.sin(this.orbit.theta);
+    this.orbit.targetX += dyPx * s * Math.sin(this.orbit.theta) * Math.cos(this.orbit.phi);
+    this.orbit.targetZ -= dyPx * s * Math.cos(this.orbit.theta) * Math.cos(this.orbit.phi);
   }
 
   // ── Raycasting (click-to-inspect) ───────────────────────────────────────

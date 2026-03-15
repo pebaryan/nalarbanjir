@@ -101,10 +101,10 @@ class GISImporter:
             raise GISImportError("rasterio package required for GeoTIFF import")
 
         with rasterio.open(filepath) as src:
-            # Read as a masked array so rasterio applies the nodata mask for us
-            elevation_masked = src.read(1, masked=True)
-            # Convert to float32 and fill masked (nodata) cells with NaN
-            elevation = elevation_masked.filled(np.nan).astype(np.float32)
+            # Read as a masked array so rasterio applies the nodata mask for us.
+            # Cast to float32 first — nan only exists in floating-point types.
+            elevation_masked = src.read(1, masked=True).astype(np.float32)
+            elevation = elevation_masked.filled(np.nan)
 
             # Get CRS
             crs = src.crs
@@ -171,8 +171,8 @@ class GISImporter:
 
         # rasterio can read ASCII grids directly
         with rasterio.open(filepath) as src:
-            elevation_masked = src.read(1, masked=True)
-            elevation = elevation_masked.filled(np.nan).astype(np.float32)
+            elevation_masked = src.read(1, masked=True).astype(np.float32)
+            elevation = elevation_masked.filled(np.nan)
 
             # ASCII grids don't always have CRS, default to WGS84
             epsg_code = 4326

@@ -1,25 +1,12 @@
-"""API module for Flood Prediction World Model.
-
-This module provides API endpoints, WebSocket support, and request handling
-for the flood prediction system.
 """
+Nalarbanjir API layer.
 
-from .websocket_manager import (
-    ConnectionManager,
-    RealTimeDataStreamer,
-    websocket_handler,
-    start_websocket_server,
-    connection_manager,
-    broadcast_simulation_update,
-    broadcast_alert,
-)
+The public surface of this package is the FastAPI application created in
+src.main.  Route modules and schemas live in sub-packages:
 
-__all__ = [
-    "ConnectionManager",
-    "RealTimeDataStreamer",
-    "websocket_handler",
-    "start_websocket_server",
-    "connection_manager",
-    "broadcast_simulation_update",
-    "broadcast_alert",
-]
+  src.api.routes.*          — HTTP route modules (APIRouter instances)
+  src.api.websocket.*       — WebSocket manager + endpoint
+  src.api.schemas.*         — Pydantic v2 request/response models
+  src.api.serializers       — physics state → schema converters
+  src.api.dependencies      — FastAPI Depends helpers
+"""

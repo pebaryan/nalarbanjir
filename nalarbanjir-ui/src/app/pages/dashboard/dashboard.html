@@ -1,0 +1,57 @@
+<section class="dashboard">
+  <header class="dashboard__header">
+    <h1>Nalarbanjir</h1>
+    <p class="subtitle">Coupled 1D/2D Flood Simulation · Indonesia</p>
+    <app-status-badge [status]="store.status()" />
+  </header>
+
+  <div class="dashboard__grid">
+    <!-- Status card -->
+    <div class="card">
+      <h2>Simulation</h2>
+      <dl>
+        <dt>Mode</dt>     <dd>{{ store.mode() | uppercase }}</dd>
+        <dt>Time</dt>     <dd>{{ store.formattedTime() }}</dd>
+        <dt>Step</dt>     <dd>{{ store.formattedStep() }}</dd>
+        <dt>WS</dt>       <dd>
+          <app-status-badge [status]="store.isWsConnected() ? 'connected' : 'idle'" />
+        </dd>
+      </dl>
+      <div class="card__actions">
+        <a routerLink="/simulation" class="btn btn--primary">Open Controls</a>
+      </div>
+    </div>
+
+    <!-- Flood stats card -->
+    <div class="card">
+      <h2>Flood Status</h2>
+      <dl>
+        <dt>Max depth</dt>   <dd>{{ store.maxDepthStr() }}</dd>
+        <dt>Flooded area</dt><dd>{{ store.floodedAreaStr() }}</dd>
+        @if (store.stats(); as s) {
+          <dt>Risk</dt>
+          <dd><span class="risk-badge" [class]="'risk-badge--' + s.dominantRisk">{{ s.dominantRisk }}</span></dd>
+        }
+      </dl>
+    </div>
+
+    <!-- Terrain card -->
+    <div class="card">
+      <h2>Terrain</h2>
+      @if (loading()) {
+        <p class="muted">Loading…</p>
+      } @else if (terrainInfo(); as t) {
+        <dl>
+          <dt>Grid</dt>      <dd>{{ t.nx }} × {{ t.ny }} cells</dd>
+          <dt>Cell size</dt> <dd>{{ t.dx }} m</dd>
+          <dt>Elevation</dt> <dd>{{ t.min_elevation | number:'1.1-1' }} – {{ t.max_elevation | number:'1.1-1' }} m</dd>
+        </dl>
+      } @else {
+        <p class="muted">No terrain data.</p>
+      }
+      <div class="card__actions">
+        <a routerLink="/map" class="btn btn--secondary">View Map</a>
+      </div>
+    </div>
+  </div>
+</section>

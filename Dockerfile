@@ -1,59 +1,48 @@
-# Flood Prediction World Model - Docker Image
-# Based on ComfyUI-like architecture with web-based frontend and backend computation
+# ─── Nalarbanjir API — Python backend ────────────────────────────────────
+# Multi-stage:
+#   builder  — installs deps into /install
+#   runtime  — minimal runtime image
 
-FROM python:3.11-slim
+# ── Stage 1: dependency builder ───────────────────────────────────────────
+FROM python:3.13-slim AS builder
 
-# Set working directory
-WORKDIR /app
+WORKDIR /install
 
-# Environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV APP_HOME=/app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    curl \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
 COPY requirements.txt .
+RUN pip install --prefix=/install --no-cache-dir -r requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY src/ ./src/
-COPY config/ ./config/
-COPY scripts/ ./scripts/
+# ── Stage 2: runtime ──────────────────────────────────────────────────────
+FROM python:3.13-slim AS runtime
 
-# Create necessary directories
-RUN mkdir -p /app/data/terrain \
-    /app/data/observations \
-    /app/logs \
-    /app/output
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app
 
-# Set environment paths
-ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONPATH="/app:$PYTHONPATH"
+WORKDIR /app
 
-# Expose ports for web interface and backend
-EXPOSE 8000
-EXPOSE 8080
+# Copy pre-built packages
+COPY --from=builder /install /usr/local
 
-# Create health check script
-RUN echo 'import sys, urllib.request; exec("try:\n    with urllib.request.urlopen(\\'http://localhost:8000/health\\', timeout=5) as r: sys.exit(0 if r.status == 200 else 1)\nexcept: sys.exit(1)")' > /app/healthcheck.py
+# Application source
+COPY src/     ./src/
+COPY config/  ./config/
+COPY ml/      ./ml/
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python /app/healthcheck.py
+# Runtime directories
+RUN mkdir -p logs data/primary data/archive ml/checkpoints
 
-# Create non-root user for security
+# Non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Default command to start the application
-CMD ["python", "-m", "uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request,sys; r=urllib.request.urlopen('http://localhost:8000/api/health',timeout=5); sys.exit(0 if r.status==200 else 1)"
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

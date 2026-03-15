@@ -1,0 +1,48 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0 2rem;
+  height: 56px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  flex-shrink: 0;
+
+  &__brand {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #38bdf8;
+    letter-spacing: -0.01em;
+  }
+
+  &__links {
+    display: flex;
+    gap: 0.25rem;
+
+    a {
+      color: #94a3b8;
+      text-decoration: none;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: color 0.15s, background 0.15s;
+
+      &:hover  { color: #e2e8f0; background: #0f172a; }
+      &.active { color: #38bdf8; background: #0f172a; }
+    }
+  }
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+}

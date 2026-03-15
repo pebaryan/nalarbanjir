@@ -1,0 +1,87 @@
+.dashboard {
+  padding: 2rem;
+
+  &__header {
+    margin-bottom: 2rem;
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin: 0 0 0.25rem;
+    }
+
+    .subtitle {
+      color: #64748b;
+      margin: 0 0 0.75rem;
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+}
+
+.card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 1.25rem;
+
+  h2 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    margin: 0 0 1rem;
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.4rem 1rem;
+    font-size: 0.9rem;
+    margin: 0;
+
+    dt { color: #64748b; }
+    dd { color: #e2e8f0; margin: 0; }
+  }
+
+  &__actions {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+}
+
+.btn {
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+
+  &--primary   { background: #2563eb; color: #fff; }
+  &--secondary { background: #334155; color: #e2e8f0; }
+}
+
+.muted { color: #64748b; font-size: 0.9rem; }
+
+.risk-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &--none     { background: #1e293b; color: #64748b; }
+  &--minor    { background: #1d4ed8; color: #bfdbfe; }
+  &--moderate { background: #b45309; color: #fde68a; }
+  &--major    { background: #c2410c; color: #fed7aa; }
+  &--severe   { background: #991b1b; color: #fecaca; }
+}

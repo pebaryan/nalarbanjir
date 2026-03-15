@@ -1,0 +1,14 @@
+<div class="shell">
+  <nav class="nav">
+    <span class="nav__brand">Nalarbanjir</span>
+    <div class="nav__links">
+      <a routerLink="/"           routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}">Dashboard</a>
+      <a routerLink="/simulation" routerLinkActive="active">Simulation</a>
+      <a routerLink="/map"        routerLinkActive="active">Map</a>
+    </div>
+  </nav>
+
+  <main class="content">
+    <router-outlet />
+  </main>
+</div>

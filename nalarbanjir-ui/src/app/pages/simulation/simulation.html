@@ -1,0 +1,67 @@
+<section class="simulation-page">
+  <h1>Simulation Controls</h1>
+
+  @if (store.hasError()) {
+    <div class="alert alert--error">{{ store.errorMessage() }}</div>
+  }
+  @if (errorMsg()) {
+    <div class="alert alert--error">{{ errorMsg() }}</div>
+  }
+
+  <!-- Config panel -->
+  <div class="panel">
+    <h2>Configuration</h2>
+    <div class="form-row">
+      <label>Mode</label>
+      <div class="btn-group">
+        @for (m of modes; track m) {
+          <button
+            class="btn-toggle"
+            [class.btn-toggle--active]="selectedMode() === m"
+            (click)="selectedMode.set(m)">
+            {{ m.toUpperCase() }}
+          </button>
+        }
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Total steps</label>
+      <input type="number" [value]="steps()" (input)="steps.set(+$any($event.target).value)" min="1" max="100000" />
+    </div>
+    <div class="form-row actions">
+      <button class="btn btn--primary" (click)="start()">Initialize</button>
+    </div>
+  </div>
+
+  <!-- Run panel -->
+  <div class="panel">
+    <h2>Run</h2>
+    <div class="form-row">
+      <label>HTTP Steps (n)</label>
+      <input type="number" [value]="stepN()" (input)="stepN.set(+$any($event.target).value)" min="1" max="1000" />
+      <button class="btn btn--secondary" (click)="stepN_times()">Step</button>
+    </div>
+    <div class="form-row actions">
+      <button class="btn btn--primary" [disabled]="store.isRunning()" (click)="runViaWs()">
+        {{ store.isRunning() ? 'Running…' : 'Run via WebSocket' }}
+      </button>
+      <button class="btn btn--danger" (click)="reset()">Reset</button>
+    </div>
+  </div>
+
+  <!-- Live stats -->
+  <div class="panel panel--stats">
+    <h2>Live State</h2>
+    <dl>
+      <dt>Time</dt>       <dd>{{ store.formattedTime() }}</dd>
+      <dt>Step</dt>       <dd>{{ store.formattedStep() }}</dd>
+      <dt>Status</dt>     <dd><app-status-badge [status]="store.status()" /></dd>
+      <dt>WS</dt>         <dd><app-status-badge [status]="store.isWsConnected() ? 'connected' : 'idle'" /></dd>
+      @if (store.stats(); as s) {
+        <dt>Max depth</dt>    <dd>{{ store.maxDepthStr() }}</dd>
+        <dt>Flooded area</dt> <dd>{{ store.floodedAreaStr() }}</dd>
+        <dt>Risk</dt>         <dd>{{ s.dominantRisk }}</dd>
+      }
+    </dl>
+  </div>
+</section>

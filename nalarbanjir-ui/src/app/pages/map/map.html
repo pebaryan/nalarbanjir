@@ -1,0 +1,20 @@
+<section class="map-page">
+  <h1>Map / Viewer</h1>
+
+  <div class="map-page__layout">
+    <!-- 3D terrain/water viewport -->
+    <div class="viewport-container">
+      <app-terrain-viewer
+        [terrain]="terrain()"
+        [water]="water()"
+        class="viewport">
+      </app-terrain-viewer>
+    </div>
+
+    <!-- Side panels -->
+    <aside class="side-panels">
+      <app-channel-profile [data]="profile()" />
+      <app-analytics-panel [history]="analytics()" />
+    </aside>
+  </div>
+</section>

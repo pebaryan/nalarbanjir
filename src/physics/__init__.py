@@ -1,10 +1,13 @@
-"""Physics module for flood prediction world model.
-
-Contains the shallow water wave equation solver, terrain modeling,
-and boundary condition handling for flood dynamics simulation.
 """
+Physics module — hydraulic solvers and terrain modeling.
 
-from .shallow_water import ShallowWaterSolver
-from .terrain import TerrainModel
+New architecture (v2):
+  solver_2d/   — Finite-volume 2D solver (HLLE Riemann)
+  solver_1d/   — Preissmann implicit 1D solver
+  coupled/     — 1D+2D lateral weir coupler
+  state.py     — SimulationState dataclasses
+  base.py      — AbstractSolver protocol
 
-__all__ = ["ShallowWaterSolver", "TerrainModel", "BoundaryConditions"]
+Legacy (deprecated — kept for reference only):
+  shallow_water.py  — replaced by solver_2d/
+"""

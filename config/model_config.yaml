@@ -1,275 +1,132 @@
-# Flood Prediction World Model - Configuration File
-# This configuration file defines all parameters for the simulation,
-# including physics, ML model, and visualization settings.
+# Nalarbanjir — Model Configuration v2.0
+# Hydrophysics + AI flood prediction for Indonesia
 
-# Application Information
-application:
-  name: "Flood Prediction World Model"
-  version: "1.0.0"
-  description: "A comprehensive world model for flood prediction based on shallow water wave equations"
+app:
+  name: nalarbanjir
+  version: "2.0.0"
+  description: "Hydrophysics + AI flood prediction for Indonesia"
 
-# Physics Engine Configuration
+# ── Physics ────────────────────────────────────────────────────────────────
 physics:
-  # Gravitational acceleration (m/s²)
   gravity: 9.81
-  
-  # Coriolis parameter (s⁻¹)
-  coriolis: 0.0
-  
-  # Bottom friction coefficient
-  bottom_friction: 0.02
-  
-  # Time step for simulation (seconds)
-  time_step: 1.0
-  
-  # Domain dimensions (meters)
-  domain_x: 10000.0
-  domain_y: 10000.0
-  
-  # Terrain characteristics
-  terrain:
-    amplitude: 2.0  # Terrain elevation amplitude (m)
-    wavelength: 2000.0  # Terrain pattern wavelength (m)
-  
-  # Initial conditions
-  initial_conditions:
-    water_depth: 1.0  # Initial average depth (m)
-    velocity: 0.2  # Initial velocity (m/s)
-    surface_elevation: 0.0  # Reference surface elevation (m)
+  default_mode: "2d"   # '1d' | '2d' | '1d2d'
 
-# Grid Configuration
-grid:
-  # Grid resolution
-  nx: 100  # Number of grid points in x direction
-  ny: 100  # Number of grid points in y direction
-  
-  # Batch size for ML processing
-  batch_size: 32
-  
-  # Adaptive refinement thresholds
-  refinement:
-    min_depth: 0.5  # Minimum water depth for refinement (m)
-    max_depth: 5.0  # Maximum water depth for refinement (m)
-    velocity_threshold: 1.0  # Velocity threshold for refinement (m/s)
+  solver_1d:
+    theta: 0.6          # Preissmann weight: 0.5=centered, 1.0=fully implicit
+    dt: 10.0            # [s] implicit allows large dt
+    tolerance: 1.0e-6   # Newton-Raphson convergence tolerance
+    max_iterations: 50
+    default_manning_n: 0.03
 
-# Terrain Configuration
+  solver_2d:
+    dt: 1.0             # [s] auto-adjusted by CFL condition
+    cfl: 0.9            # Courant-Friedrichs-Lewy safety factor
+    dx: 100.0           # [m] cell size x
+    dy: 100.0           # [m] cell size y
+    nx: 100             # number of cells x
+    ny: 100             # number of cells y
+    min_depth: 0.001    # [m] wet/dry threshold
+    domain_x: 10000.0   # [m] total domain width
+    domain_y: 10000.0   # [m] total domain height
+
+  coupling:
+    weir_coefficient: 0.4    # broad-crested weir Cd
+    sync_interval: 1         # exchange every N 2D steps
+
+# ── Terrain & Land Use ─────────────────────────────────────────────────────
 terrain:
-  # Flood risk thresholds (meters)
-  flood_thresholds:
-    minor: 1.0
-    moderate: 2.0
-    major: 3.0
-    severe: 5.0
-  
-  # Land use classification
-  land_use:
-    types:
-      - name: "water"
-        permeability: 0.1
-        vulnerability: 5
-      - name: "urban"
-        permeability: 0.3
-        vulnerability: 3
-      - name: "agricultural"
-        permeability: 0.6
-        vulnerability: 2
-      - name: "forest"
-        permeability: 0.7
-        vulnerability: 3
-      - name: "wetland"
-        permeability: 0.8
-        vulnerability: 4
-      - name: "open_land"
-        permeability: 0.5
-        vulnerability: 2
-  
-  # Terrain features
-  features:
-    highlands:
-      elevation_min: 4.0
-      area_fraction: 0.25
-    lowlands:
-      elevation_max: 2.0
-      area_fraction: 0.35
-    floodplains:
-      elevation_range: [0.5, 3.0]
-      area_fraction: 0.40
+  initial_water_depth: 0.0   # [m] uniform initial condition
+  amplitude: 2.0             # [m] synthetic DEM amplitude
+  wavelength: 2000.0         # [m] synthetic DEM wavelength
 
-# Machine Learning Model Configuration
+  manning_n:
+    water:        0.025
+    urban:        0.015
+    agricultural: 0.035
+    forest:       0.100
+    wetland:      0.050
+    open_land:    0.030
+
+  flood_thresholds:           # [m] water depth thresholds
+    minor:    0.3
+    moderate: 1.0
+    major:    2.0
+    severe:   5.0
+
+  land_use:
+    water:        {permeability: 0.1, vulnerability: 5}
+    urban:        {permeability: 0.3, vulnerability: 3}
+    agricultural: {permeability: 0.6, vulnerability: 2}
+    forest:       {permeability: 0.7, vulnerability: 3}
+    wetland:      {permeability: 0.8, vulnerability: 4}
+    open_land:    {permeability: 0.5, vulnerability: 2}
+
+# ── Rainfall ───────────────────────────────────────────────────────────────
+rainfall:
+  default_type: "uniform"    # 'uniform' | 'storm_cell' | 'frontal'
+  default_intensity: 0.0     # [m/s]
+  storm_cell:
+    sigma: 2000.0            # [m] Gaussian spread
+
+# ── Machine Learning ───────────────────────────────────────────────────────
 ml:
-  # Model architecture
   model_type: "flood_net"
-  
-  # Input and output configuration
-  input_features: 10
-  output_features: 5
-  
-  # Hidden layer dimensions
-  hidden_dims:
-    - 64
-    - 128
-    - 256
-  
-  # Training parameters
-  learning:
+  checkpoint_path: "ml/checkpoints/floodnet_v2.pt"
+
+  architecture:
+    input_features: 10
+    output_features: 5
+    hidden_dims: [64, 128, 256]
+    n_heads: 4
+    dropout: 0.1
+
+  training:
     learning_rate: 0.001
-    dropout_rate: 0.1
     batch_size: 32
     epochs: 100
-  
-  # Prediction settings
-  prediction:
-    types:
-      - "flood_risk"
-      - "flow_dynamics"
-      - "water_quality"
-    horizon: 24  # Forecast horizon (hours)
-    confidence_threshold: 0.8
+    patience: 10
+    validation_split: 0.2
 
-# Visualization Configuration
-visualization:
-  # Rendering settings
-  resolution: "high"  # low, medium, high, ultra
-  update_frequency: 30  # Updates per second
-  
-  # Render modes
-  render_mode: "realtime"  # realtime, batch, hybrid
-  
-  # Color schemes
-  color_schemes:
-    natural:
-      water: "#3b82f6"
-      land: "#10b981"
-      urban: "#f59e0b"
-      risk:
-        low: "#10b981"
-        moderate: "#f59e0b"
-        high: "#ef4444"
-        severe: "#7f1d1d"
-  
-  # Visualization components
-  components:
-    water_surface:
-      enabled: true
-      render_style: "3d"
-    flow_vectors:
-      enabled: true
-      vector_density: 0.5
-    flood_zones:
-      enabled: true
-      highlight_active: true
+  inference:
+    mc_dropout_passes: 50    # Monte Carlo Dropout for UQ
+    batch_size: 256
 
-# Simulation Configuration
+# ── Simulation ─────────────────────────────────────────────────────────────
 simulation:
-  # Total simulation steps
   total_steps: 1000
-  
-  # Step intervals
-  save_every: 100  # Save checkpoint every N steps
-  log_every: 10  # Log metrics every N steps
-  
-  # Simulation modes
-  modes:
-    - name: "comprehensive"
-      description: "Full simulation with all components"
-    - name: "focal"
-      description: "Focused simulation on specific areas"
-    - name: "regional"
-      description: "Regional-scale simulation"
-  
-  # Event triggers
-  events:
-    - type: "flood_alert"
-      threshold: 3.0
-      action: "activate_response"
-    - type: "flow_change"
-      threshold: 0.5
-      action: "update_routing"
+  save_every: 100
+  log_every: 10
+  broadcast_interval: 5      # emit WebSocket update every N steps
 
-# API Configuration
+# ── API ────────────────────────────────────────────────────────────────────
 api:
-  # Server settings
   host: "0.0.0.0"
   port: 8000
-  
-  # WebSocket settings
+  cors_origins: ["*"]
   websocket:
-    enabled: true
     url: "/ws"
-    heartbeat_interval: 30
-  
-  # Endpoints
-  endpoints:
-    - path: "/api/simulate"
-      methods: ["POST"]
-    - path: "/api/state"
-      methods: ["GET"]
-    - path: "/api/terrain"
-      methods: ["GET"]
-    - path: "/api/predict"
-      methods: ["POST"]
-    - path: "/api/history"
-      methods: ["GET"]
+    heartbeat_interval: 30   # [s]
+    max_connections: 100
 
-# Logging Configuration
+# ── Logging ────────────────────────────────────────────────────────────────
 logging:
   level: "INFO"
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  
-  # Log files
   files:
     simulation: "logs/simulation.log"
-    errors: "logs/errors.log"
-    access: "logs/access.log"
+    errors:     "logs/errors.log"
+    access:     "logs/access.log"
 
-# Data Management
+# ── Data ───────────────────────────────────────────────────────────────────
 data:
-  # Storage configuration
   storage:
-    type: "hierarchical"
-    locations:
-      - name: "primary"
-        path: "data/primary"
-        retention: "30d"
-      - name: "archive"
-        path: "data/archive"
-        retention: "1y"
-  
-  # Data formats
-  formats:
-    - "json"
-    - "csv"
-    - "netcdf"
+    primary: "data/primary"
+    archive: "data/archive"
+  formats: ["json", "csv", "netcdf", "hdf5"]
 
-# User Interface Settings
-ui:
-  # Theme settings
-  theme:
-    mode: "light"
-    colors:
-      primary: "#2563eb"
-      secondary: "#10b981"
-      accent: "#f59e0b"
-  
-  # Layout preferences
-  layout:
-    responsive: true
-    components:
-      - "dashboard"
-      - "simulation"
-      - "visualization"
-      - "analytics"
-
-# Performance Settings
+# ── Performance ────────────────────────────────────────────────────────────
 performance:
-  # Resource limits
   limits:
-    max_memory: "4GB"
-    max_cpu: "80%"
+    max_memory_gb: 4
+    max_cpu_percent: 80
     max_connections: 1000
-  
-  # Optimization settings
-  optimization:
-    caching: true
-    load_balancing: true
-    auto_scaling: true
+  caching: true

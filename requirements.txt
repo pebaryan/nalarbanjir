@@ -1,34 +1,25 @@
-# Flood Prediction World Model - Dependencies
+# Nalarbanjir v2 — core dependencies (no optional ML packages)
+# Install with:  pip install -r requirements.txt
 
-## Core Dependencies
-numpy>=1.24.0
-torch>=2.0.0
-opencv-python>=4.8.0
-matplotlib>=3.7.0
-scipy>=1.10.0
+# ── Numerics ──────────────────────────────────────────────────────────────
+numpy>=1.26.0
 
-## Web Framework
-fastapi>=0.100.0
-uvicorn[standard]>=0.24.0
-python-multipart>=0.0.6
+# ── Web framework ─────────────────────────────────────────────────────────
+fastapi>=0.135.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.6.0
+python-multipart>=0.0.9
+httpx>=0.27.0         # used by FastAPI TestClient
 
-## Frontend (Web-based Visualization)
-websockets>=12.0
-pydantic>=2.4.0
-
-## Data Processing
-h5py>=3.9.0
-pandas>=2.0.0
-
-## Configuration and Logging
+# ── Utilities ─────────────────────────────────────────────────────────────
 pyyaml>=6.0
 python-json-logger>=2.0.0
 
-## Development and Testing
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
-black>=23.11.0
-isort>=5.12.0
+# ── Testing ───────────────────────────────────────────────────────────────
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
 
-## Docker and Deployment
-docker>=6.1.0
+# ── Optional — ML (requires separate install or Docker layer) ─────────────
+# torch>=2.2.0         # uncomment for GPU-accelerated FloodNet training
+# scipy>=1.12.0        # uncomment for advanced interpolation
+# scikit-learn>=1.4.0  # uncomment for random forest baseline

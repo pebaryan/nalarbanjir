@@ -1,51 +1,25 @@
 {
-  "name": "nalarbanjir-ui",
-  "version": "0.0.0",
+  "name": "nalarbanjir-frontend-typescript",
+  "version": "1.0.0",
+  "description": "TypeScript definitions and services for the nalarbanjir frontend",
+  "main": "services/index.ts",
+  "types": "services/index.ts",
   "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist"
   },
-  "prettier": {
-    "printWidth": 100,
-    "singleQuote": true,
-    "overrides": [
-      {
-        "files": "*.html",
-        "options": {
-          "parser": "angular"
-        }
-      }
-    ]
-  },
-  "private": true,
-  "dependencies": {
-    "@angular/common": "^20.3.0",
-    "@angular/compiler": "^20.3.0",
-    "@angular/core": "^20.3.0",
-    "@angular/forms": "^20.3.0",
-    "@angular/platform-browser": "^20.3.0",
-    "@angular/router": "^20.3.0",
-    "@ngrx/signals": "^21.0.1",
-    "@types/three": "^0.183.1",
-    "rxjs": "~7.8.0",
-    "three": "^0.183.2",
-    "tslib": "^2.3.0",
-    "zone.js": "~0.15.0"
-  },
+  "keywords": [
+    "threejs",
+    "gis",
+    "flood-prediction",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
   "devDependencies": {
-    "@angular/build": "^20.3.15",
-    "@angular/cli": "^20.3.15",
-    "@angular/compiler-cli": "^20.3.0",
-    "@types/jasmine": "~5.1.0",
-    "jasmine-core": "~5.9.0",
-    "karma": "~6.4.0",
-    "karma-chrome-launcher": "~3.2.0",
-    "karma-coverage": "~2.2.0",
-    "karma-jasmine": "~5.1.0",
-    "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.9.2"
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "three": "^0.160.0"
   }
 }

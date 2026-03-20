@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.config import get_config
 from src.core.events import lifespan
-from src.api.routes import health, simulation, terrain, prediction, gis, layers
+from src.api.routes import health, simulation, terrain, prediction, gis, layers, rivers
 from src.api.websocket import simulation_ws
 
 
@@ -49,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(prediction.router, prefix="/api/prediction")
     app.include_router(gis.router,        prefix="/api/gis")
     app.include_router(layers.router,     prefix="/api/layers")
+    app.include_router(rivers.router,     prefix="/api/rivers")
 
     # WebSocket
     app.add_api_websocket_route("/ws", simulation_ws.endpoint)

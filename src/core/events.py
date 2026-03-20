@@ -84,6 +84,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.tiling_tasks = {}   # task_id  → progress dict
     app.state.tile_manager = TerrainTileManager()
 
+    # River state — populated by /api/rivers/* endpoints
+    app.state.rivers = {}   # river_id → river dict
+    app.state.rivers_list = []  # list of river_ids
+
     # Layer state — populated by /api/layers/* endpoints
     app.state.layer_storage = {}  # layer_id → layer dict
 

@@ -54,14 +54,18 @@ class ShallowWaterSolver:
             config: Configuration dictionary with physics parameters
             grid_resolution: Number of grid points in x and y directions
         """
+        # Validate inputs
+        self._validate_config(config)
+        self._validate_grid_resolution(grid_resolution)
+        
         self.config = config
         self.grid_resolution = grid_resolution
         self.nx, self.ny = grid_resolution
 
-        # Physical parameters
-        self.g = config.get("gravity", 9.81)  # Gravitational acceleration (m/s²)
-        self.f = config.get("coriolis", 0.0)  # Coriolis parameter
-        self.rh = config.get("bottom_friction", 0.02)  # Bottom friction coefficient
+        # Physical parameters with validation
+        self.g = self._validate_positive(config.get("gravity", 9.81), "gravity")
+        self.f = config.get("coriolis", 0.0)  # Coriolis parameter (can be negative)
+        self.rh = self._validate_non_negative(config.get("bottom_friction", 0.02), "bottom_friction")
 
         # Initialize grid
         self._initialize_grid()
@@ -70,7 +74,7 @@ class ShallowWaterSolver:
         self.state = self._init_state()
 
         # Time integration
-        self.dt = config.get("time_step", 1.0)  # Time step (s)
+        self.dt = self._validate_positive(config.get("time_step", 1.0), "time_step")
         self.time = 0.0
 
         logger.info(f"ShallowWaterSolver initialized: {self.nx}x{self.ny} grid")
@@ -80,6 +84,83 @@ class ShallowWaterSolver:
             f"  Gravity: {self.g} m/s², Coriolis: {self.f}, Friction: {self.rh}"
         )
         logger.info(f"  Time step: {self.dt}s")
+
+    @staticmethod
+    def _validate_positive(value: float, param_name: str) -> float:
+        """Validate that a parameter is positive.
+        
+        Args:
+            value: Parameter value
+            param_name: Parameter name for error message
+            
+        Returns:
+            Validated value
+            
+        Raises:
+            ValueError: If value is not positive
+        """
+        if value <= 0:
+            raise ValueError(f"{param_name} must be positive, got {value}")
+        return value
+
+    @staticmethod
+    def _validate_non_negative(value: float, param_name: str) -> float:
+        """Validate that a parameter is non-negative.
+        
+        Args:
+            value: Parameter value
+            param_name: Parameter name for error message
+            
+        Returns:
+            Validated value
+            
+        Raises:
+            ValueError: If value is negative
+        """
+        if value < 0:
+            raise ValueError(f"{param_name} must be non-negative, got {value}")
+        return value
+
+    @staticmethod
+    def _validate_config(config: Dict) -> None:
+        """Validate configuration dictionary.
+        
+        Args:
+            config: Configuration dictionary
+            
+        Raises:
+            ValueError: If configuration is invalid
+        """
+        if not isinstance(config, dict):
+            raise TypeError("config must be a dictionary")
+        
+        # Validate domain dimensions if provided
+        domain_x = config.get("domain_x", 10000.0)
+        domain_y = config.get("domain_y", 10000.0)
+        
+        if domain_x <= 0:
+            raise ValueError(f"domain_x must be positive, got {domain_x}")
+        if domain_y <= 0:
+            raise ValueError(f"domain_y must be positive, got {domain_y}")
+
+    @staticmethod
+    def _validate_grid_resolution(resolution: Tuple[int, int]) -> None:
+        """Validate grid resolution.
+        
+        Args:
+            resolution: Grid resolution tuple (nx, ny)
+            
+        Raises:
+            ValueError: If resolution is invalid
+        """
+        if len(resolution) != 2:
+            raise ValueError("grid_resolution must be a tuple of (nx, ny)")
+        
+        nx, ny = resolution
+        if nx < 2 or ny < 2:
+            raise ValueError(f"grid_resolution must be at least (2, 2), got {resolution}")
+        if not (isinstance(nx, int) and isinstance(ny, int)):
+            raise ValueError(f"grid_resolution must contain integers, got {resolution}")
 
     def _initialize_grid(self):
         """Initialize the computational grid."""
@@ -154,6 +235,64 @@ class ShallowWaterSolver:
 
         return depth
 
+    def _check_cfl_condition(self) -> Tuple[bool, float]:
+        """Check Courant-Friedrichs-Lewy (CFL) condition for numerical stability.
+        
+        The CFL condition ensures that information doesn't propagate faster than
+        the numerical scheme can resolve: dt < min(dx, dy) / max(|u| + c, |v| + c)
+        
+        Where c = sqrt(g*h) is the wave celerity.
+        
+        Returns:
+            Tuple of (is_stable, cfl_number)
+        """
+        h = self.state.depth
+        u = self.state.velocity_x
+        v = self.state.velocity_y
+        
+        # Wave celerity (shallow water wave speed)
+        c = np.sqrt(self.g * np.maximum(h, 0.001))  # Avoid division by zero
+        
+        # Maximum characteristic velocity
+        max_char_vel = np.maximum(np.abs(u) + c, np.abs(v) + c)
+        max_char_vel = np.max(max_char_vel)
+        
+        # Minimum grid spacing
+        min_dx = min(self.dx, self.dy)
+        
+        # CFL number (should be < 1 for stability)
+        if max_char_vel > 0:
+            cfl_number = self.dt * max_char_vel / min_dx
+        else:
+            cfl_number = 0
+        
+        is_stable = cfl_number < 1.0
+        return is_stable, cfl_number
+
+    def _compute_stable_time_step(self, cfl_target: float = 0.8) -> float:
+        """Compute a stable time step based on CFL condition.
+        
+        Args:
+            cfl_target: Target CFL number (typically 0.5-0.9)
+            
+        Returns:
+            Recommended stable time step
+        """
+        h = self.state.depth
+        u = self.state.velocity_x
+        v = self.state.velocity_y
+        
+        c = np.sqrt(self.g * np.maximum(h, 0.001))
+        max_char_vel = np.max(np.maximum(np.abs(u) + c, np.abs(v) + c))
+        min_dx = min(self.dx, self.dy)
+        
+        if max_char_vel > 0:
+            stable_dt = cfl_target * min_dx / max_char_vel
+        else:
+            stable_dt = self.dt  # Use current dt if no velocity
+            
+        return min(stable_dt, self.dt * 10)  # Don't increase dt by more than 10x
+
     def evolve(self, steps: int = 100) -> List[WaterState]:
         """Evolve the water state over multiple time steps.
 
@@ -163,6 +302,18 @@ class ShallowWaterSolver:
         Returns:
             List of water states at each time step
         """
+        # Check CFL condition before starting
+        is_stable, cfl_number = self._check_cfl_condition()
+        
+        if not is_stable:
+            stable_dt = self._compute_stable_time_step()
+            logger.warning(
+                f"CFL condition violated! Current dt={self.dt}s gives CFL={cfl_number:.3f} > 1.0"
+                f". Recommended dt={stable_dt:.4f}s for stability."
+            )
+        else:
+            logger.info(f"CFL condition satisfied: CFL={cfl_number:.3f} < 1.0")
+        
         logger.info(f"Starting evolution: {steps} steps")
         states = [self.state]
 

@@ -6,14 +6,17 @@ dashboards for the flood prediction system.
 """
 
 import numpy as np
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 import json
+import logging
 
-from ..physics.shallow_water import ShallowWaterSolver, WaterState
-from ..physics.terrain import TerrainModel
+logger = logging.getLogger(__name__)
+
+from physics.shallow_water import ShallowWaterSolver, WaterState
+from physics.terrain import TerrainModel
 from .water_surface import WaterSurfaceRenderer
 from .flow_vectors import FlowVectorRenderer
 from .flood_zones import FloodZoneMapper

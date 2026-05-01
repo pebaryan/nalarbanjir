@@ -9,8 +9,9 @@ import tempfile
 import os
 
 import sys
+from pathlib import Path
 
-sys.path.append("/home/peb/.openclaw/workspace/flood-prediction-world/src")
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from gis.mesh_generator import (
     Mesh3D,
@@ -104,12 +105,12 @@ class TestMesh3D:
         for i in range(4):
             np.testing.assert_allclose(normals[i], [0, 0, 1], atol=0.01)
 
-    def test_to_threejs_buffergeometry(self, simple_mesh):
+    def test_to_threejs_buffer_geometry(self, simple_mesh):
         """Test Three.js export."""
         # Add normals
         simple_mesh.normals = simple_mesh.calculate_normals()
 
-        geometry = simple_mesh.to_threejs_buffergeometry()
+        geometry = simple_mesh.to_threejs_buffer_geometry()
 
         assert "metadata" in geometry
         assert geometry["metadata"]["type"] == "BufferGeometry"
@@ -197,30 +198,52 @@ class TestTerrainMeshGenerator:
         assert "simplified" in str(mesh.metadata).lower() or True
 
     def test_z_scale(self, sample_dtm):
-        """Test vertical scaling."""
+        """Test vertical scaling.
+
+        NOTE: The mesh generator uses Three.js Y-up convention:
+        vertices = [xx_centered, z_centered (elevation), yy_centered]
+        So elevation is in column 1 (Y), not column 2 (Z).
+        """
         generator = TerrainMeshGenerator(z_scale=2.0)
         mesh = generator.generate_from_dtm(sample_dtm)
 
-        # Max elevation should be doubled
-        z_values = mesh.vertices[:, 2]
-        assert np.max(z_values) == 160.0  # 80 * 2
+        # Elevation is in column 1 (Y-up Three.js convention)
+        elevation_values = mesh.vertices[:, 1]
+
+        # Max elevation: 80 * 2 = 160, min is subtracted (min = 0 * 2 = 0)
+        # After centering: z_centered = z_values * z_scale - min(z_values * z_scale)
+        # So max = 160 - 0 = 160
+        assert np.max(elevation_values) == pytest.approx(160.0, abs=0.1)
 
     def test_vertex_positions(self, sample_dtm):
-        """Test that vertices are in correct positions."""
+        """Test that vertices are in correct positions.
+
+        NOTE: The mesh generator centers terrain at origin and uses Y-up:
+        vertices = [xx_centered, z_centered (elevation), yy_centered]
+
+        For bounds (0,0)-(100,100), center is (50, 50).
+        Bottom-left corner (raw x=0, y=0, elev=0) becomes:
+          xx_centered = 0 - 50 = -50
+          z_centered = 0 * 1.0 - 0 = 0  (min_z = 0)
+          yy_centered = 0 - 50 = -50
+        => [-50, 0, -50]
+        """
         generator = TerrainMeshGenerator(z_scale=1.0)
         mesh = generator.generate_from_dtm(sample_dtm)
 
-        # Check corner vertices
         vertices = mesh.vertices
 
-        # Bottom-left corner (0, 0, 0)
-        np.testing.assert_allclose(vertices[0], [0, 0, 0], atol=0.01)
+        # Bottom-left corner: centered at (-50, 0, -50)
+        np.testing.assert_allclose(vertices[0], [-50, 0, -50], atol=0.01)
 
-        # Bottom-right corner (100, 0, 40)
-        bottom_right = vertices[4]  # 5th vertex in first row
-        np.testing.assert_allclose(bottom_right[0], 100.0, atol=0.1)
-        np.testing.assert_allclose(bottom_right[1], 0.0, atol=0.1)
-        np.testing.assert_allclose(bottom_right[2], 40.0, atol=0.1)
+        # Bottom-right corner (5th vertex, index 4): x=100, y=0, elev=40
+        # xx_centered = 100 - 50 = 50
+        # z_centered = 40 - 0 = 40
+        # yy_centered = 0 - 50 = -50
+        bottom_right = vertices[4]
+        np.testing.assert_allclose(bottom_right[0], 50.0, atol=0.1)
+        np.testing.assert_allclose(bottom_right[1], 40.0, atol=0.1)  # elevation in Y
+        np.testing.assert_allclose(bottom_right[2], -50.0, atol=0.1)
 
 
 class TestWaterSurfaceMeshGenerator:
@@ -343,9 +366,10 @@ class TestConvenienceFunctions:
         assert isinstance(mesh, Mesh3D)
         assert mesh.vertex_count == 9  # 3x3 grid
 
-        # Check z_scale was applied
-        max_z = np.max(mesh.vertices[:, 2])
-        assert max_z == 60.0  # 40 * 1.5
+        # Check z_scale was applied - elevation is in column 1 (Y-up)
+        max_elevation = np.max(mesh.vertices[:, 1])
+        # Max elevation = 40 * 1.5 = 60, min = 0 * 1.5 = 0, centered = 60 - 0 = 60
+        assert max_elevation == pytest.approx(60.0, abs=0.1)
 
     def test_generate_water_mesh(self):
         """Test generate_water_mesh convenience function."""

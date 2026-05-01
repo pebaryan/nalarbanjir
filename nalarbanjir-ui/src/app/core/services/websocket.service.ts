@@ -1,7 +1,7 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { Observable, EMPTY, Subject } from 'rxjs';
-import { catchError, switchAll, tap } from 'rxjs/operators';
+import { catchError } from 'rxjs/operators';
 
 export interface WsMessage {
   type: string;

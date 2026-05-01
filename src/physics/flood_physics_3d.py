@@ -365,9 +365,15 @@ class FloodPhysicsEngine3D:
         # Update momentum
         hu_new = h_old * u_old - dt * (dhu2_dx + dhuv_dy + pressure_grad)
 
+        # Limit momentum in very shallow cells to prevent velocity spikes
+        hu_max = self.h * 15.0  # cap at 15 m/s * depth
+        hu_new = np.clip(hu_new, -hu_max, hu_max)
+
         # Calculate new velocity (avoid division by zero)
-        h_safe = np.maximum(self.h, 0.001)
+        h_safe = np.maximum(self.h, 0.01)
         self.u = hu_new / h_safe
+        # Zero velocity in dry/near-dry cells to prevent spurious spikes
+        self.u = np.where(self.h > 0.01, self.u, 0.0)
 
     def _update_momentum_y(
         self, dt: float, h_old: np.ndarray, u_old: np.ndarray, v_old: np.ndarray
@@ -395,9 +401,15 @@ class FloodPhysicsEngine3D:
         # Update momentum
         hv_new = h_old * v_old - dt * (dhuv_dx + dhv2_dy + pressure_grad)
 
+        # Limit momentum in very shallow cells to prevent velocity spikes
+        hv_max = self.h * 15.0  # cap at 15 m/s * depth
+        hv_new = np.clip(hv_new, -hv_max, hv_max)
+
         # Calculate new velocity (avoid division by zero)
-        h_safe = np.maximum(self.h, 0.001)
+        h_safe = np.maximum(self.h, 0.01)
         self.v = hv_new / h_safe
+        # Zero velocity in dry/near-dry cells to prevent spurious spikes
+        self.v = np.where(self.h > 0.01, self.v, 0.0)
 
     def _apply_friction(self, dt: float):
         """Apply friction using Manning's equation."""

@@ -59,8 +59,10 @@ class TestGISWorkflow:
 
         # Export to Three.js format
         threejs_data = mesh.to_threejs_buffer_geometry()
-        assert "vertices" in threejs_data
-        assert "indices" in threejs_data
+        assert "data" in threejs_data
+        assert "attributes" in threejs_data["data"]
+        assert "position" in threejs_data["data"]["attributes"]
+        assert "index" in threejs_data["data"]
 
     def test_water_mesh_generation(self):
         """Test water mesh generation workflow."""
@@ -225,8 +227,8 @@ class TestEndToEndSimulation:
 
         # Deserialize and use for simulation
         imported_data = json.loads(json_str)
-        assert "vertices" in imported_data
-        assert "indices" in imported_data
+        assert "data" in imported_data
+        assert "attributes" in imported_data["data"]
 
     def test_multi_source_simulation(self):
         """Test simulation with multiple water sources."""

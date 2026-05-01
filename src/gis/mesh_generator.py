@@ -93,7 +93,7 @@ class Mesh3D:
 
         return normals
 
-    def to_threejs_buffergeometry(self) -> Dict[str, Any]:
+    def to_threejs_buffer_geometry(self) -> Dict[str, Any]:
         """Convert to Three.js BufferGeometry format.
 
         Returns:
@@ -158,7 +158,7 @@ class TerrainMeshGenerator:
         dtm = importer.import_raster("dem.tif")
         generator = TerrainMeshGenerator()
         mesh = generator.generate_from_dtm(dtm)
-        threejs_data = mesh.to_threejs_buffergeometry()
+        threejs_data = mesh.to_threejs_buffer_geometry()
     """
 
     def __init__(self, z_scale: float = 1.0):

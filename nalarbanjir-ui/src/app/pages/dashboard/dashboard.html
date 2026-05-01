@@ -40,14 +40,16 @@
       <h2>Terrain</h2>
       @if (loading()) {
         <p class="muted">Loading…</p>
-      } @else if (terrainInfo(); as t) {
-        <dl>
-          <dt>Grid</dt>      <dd>{{ t.nx }} × {{ t.ny }} cells</dd>
-          <dt>Cell size</dt> <dd>{{ t.dx }} m</dd>
-          <dt>Elevation</dt> <dd>{{ t.min_elevation | number:'1.1-1' }} – {{ t.max_elevation | number:'1.1-1' }} m</dd>
-        </dl>
       } @else {
-        <p class="muted">No terrain data.</p>
+        @if (terrainInfo(); as t) {
+          <dl>
+            <dt>Grid</dt>      <dd>{{ t.nx }} × {{ t.ny }} cells</dd>
+            <dt>Cell size</dt> <dd>{{ t.dx }} m</dd>
+            <dt>Elevation</dt> <dd>{{ t.min_elevation | number:'1.1-1' }} – {{ t.max_elevation | number:'1.1-1' }} m</dd>
+          </dl>
+        } @else {
+          <p class="muted">No terrain data.</p>
+        }
       }
       <div class="card__actions">
         <a routerLink="/map" class="btn btn--secondary">View Map</a>

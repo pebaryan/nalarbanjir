@@ -28,6 +28,8 @@ from src.ml.features import extract_features, normalise_features
 from src.ml.predictors import (
     PhysicsBasedPredictor,
     LinearFloodPredictor,
+    TorchFloodPredictor,
+    FloodNetPredictorBase,
     get_predictor,
 )
 from src.core.config import get_config
@@ -145,7 +147,8 @@ class TestGetPredictor:
     def test_returns_predictor(self):
         cfg = get_config()
         pred = get_predictor(cfg)
-        assert isinstance(pred, (PhysicsBasedPredictor, LinearFloodPredictor))
+        # Accept any predictor implementation (physics, linear, or torch)
+        assert isinstance(pred, FloodNetPredictorBase)
 
     def test_predictor_works(self):
         cfg = get_config()

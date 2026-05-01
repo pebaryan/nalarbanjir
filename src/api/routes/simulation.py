@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 
 import numpy as np
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from src.core.config import NalarbanjirConfig, get_config
@@ -137,14 +137,10 @@ async def step(
 
 @router.get("/state", response_model=SimulationStateResponse)
 async def get_state(request: Request) -> SimulationStateResponse:
-    """Return current simulation state, or an idle empty state if not started."""
+    """Return current simulation state, or 409 if engine not started."""
     engine: SimulationEngine | None = request.app.state.engine
     if engine is None:
-        from src.api.schemas.simulation import SimulationStateResponse
-        return SimulationStateResponse(
-            mode="2d", status="idle", current_step=0, elapsed_time=0.0,
-            state_1d=None, state_2d=None, stats=None,
-        )
+        raise HTTPException(status_code=409, detail="Simulation not started")
     return _engine_state_response(engine)
 
 

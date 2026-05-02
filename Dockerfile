@@ -37,6 +37,7 @@ COPY --from=builder /install /usr/local
 # Application source
 COPY src/     ./src/
 COPY config/  ./config/
+COPY checkpoints/ ./checkpoints/
 
 # Runtime directories
 RUN mkdir -p logs data/primary data/archive ml/checkpoints

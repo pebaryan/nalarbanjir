@@ -258,6 +258,13 @@ class TorchFloodPredictor(FloodNetPredictorBase):
                 )
                 return
 
+            # Load checkpoint — handle both raw state_dict and wrapped formats
+            checkpoint = torch.load(str(cp), map_location="cpu")
+            if isinstance(checkpoint, dict):
+                state_dict = checkpoint.get("model_state_dict", checkpoint)
+            else:
+                state_dict = checkpoint
+
             class _FloodNetMLP(nn.Module):
                 def __init__(self, in_f: int, n_classes: int):
                     super().__init__()
@@ -276,7 +283,7 @@ class TorchFloodPredictor(FloodNetPredictorBase):
                 in_f=config.ml.architecture.input_features,
                 n_classes=config.ml.architecture.output_features,
             )
-            model.load_state_dict(torch.load(str(cp), map_location="cpu"))
+            model.load_state_dict(state_dict, strict=False)
             model.eval()
             self._model = model
             self._torch = torch

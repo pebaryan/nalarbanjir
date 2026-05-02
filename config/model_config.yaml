@@ -71,7 +71,7 @@ rainfall:
 # ── Machine Learning ───────────────────────────────────────────────────────
 ml:
   model_type: "flood_net"
-  checkpoint_path: "ml/checkpoints/floodnet_v2.pt"
+  checkpoint_path: "checkpoints/floodnet.pt"
 
   architecture:
     input_features: 10

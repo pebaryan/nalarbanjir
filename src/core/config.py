@@ -121,7 +121,7 @@ class MLInferenceConfig(BaseModel):
 
 class MLConfig(BaseModel):
     model_type: str = "flood_net"
-    checkpoint_path: str = "ml/checkpoints/floodnet_v2.pt"
+    checkpoint_path: str = "checkpoints/floodnet.pt"
     architecture: MLArchitectureConfig = Field(default_factory=MLArchitectureConfig)
     training: MLTrainingConfig = Field(default_factory=MLTrainingConfig)
     inference: MLInferenceConfig = Field(default_factory=MLInferenceConfig)

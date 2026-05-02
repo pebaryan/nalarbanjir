@@ -16,7 +16,8 @@ from datetime import datetime
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.server import FloodWorldServer
+# NOTE: src.server was deprecated. Use src.main:create_app instead.
+# The FloodWorldServer class was moved to deprecated/server.py.
 from src.physics.shallow_water import ShallowWaterSolver, WavePropagationAnalyzer
 from src.physics.terrain import TerrainModel
 from src.ml.model import MLModel, ModelConfig
@@ -376,9 +377,15 @@ def main():
             
             logger.info("Simulation completed successfully")
         else:
-            # Start web server
-            server = FloodWorldServer(config_path=args.config)
-            server.run()
+            # Start modern FastAPI server
+            import uvicorn
+            cfg_path = args.config
+            uvicorn.run(
+                "src.main:app",
+                host="0.0.0.0",
+                port=8000,
+                reload=True,
+            )
     
     except KeyboardInterrupt:
         logger.info("Simulation interrupted by user")

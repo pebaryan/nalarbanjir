@@ -34,6 +34,19 @@ logger = logging.getLogger(__name__)
 _THRESHOLDS = [0.0, 0.3, 1.0, 2.0, 5.0]   # 0=none,1=minor,2=moderate,3=major,4=severe
 
 
+def _classify_risk_1d(depth: float, froude: float) -> int:
+    """Classify flood risk 0-4 from depth and Froude number."""
+    if depth < _THRESHOLDS[1]:
+        return 0
+    if depth < _THRESHOLDS[2]:
+        return 1
+    if depth < _THRESHOLDS[3]:
+        return 2
+    if depth < _THRESHOLDS[4] or froude < 1.0:
+        return 3
+    return 4
+
+
 # ── Abstract base ─────────────────────────────────────────────────────────
 
 class FloodNetPredictorBase(ABC):
@@ -50,6 +63,26 @@ class FloodNetPredictorBase(ABC):
     ) -> tuple[np.ndarray, np.ndarray]:
         """Return (risk_labels, confidence), both shape (nx, ny), float32."""
         ...
+
+    def predict_with_confidence_1d(
+        self,
+        state: "Solver1DState",
+        features_norm: np.ndarray,
+        steps_ahead: int = 0,
+    ) -> tuple[list[int], list[float]]:
+        """
+        Return (risk_labels, confidence) for 1D channel nodes.
+
+        Sub-classes override this when they have a native 1D inference path.
+        The base implementation falls back to per-node classification from
+        the normalised feature matrix.
+        """
+        # Generic fallback: classify each node from the risk feature (index 9)
+        risk = features_norm[:, 9].copy()
+        # Re-map from normalised space back to risk class (rough heuristic)
+        labels = np.clip(np.round(risk).astype(int), 0, 4).tolist()
+        conf = [0.7] * len(labels)  # default moderate confidence
+        return labels, conf
 
     @property
     @abstractmethod
@@ -79,9 +112,30 @@ class PhysicsBasedPredictor(FloodNetPredictorBase):
         self, state: Solver2DState, steps_ahead: int = 0
     ) -> tuple[np.ndarray, np.ndarray]:
         risk = state.flood_risk.astype(np.float32)
-        # Physics-based predictions have 100% confidence (they're exact by definition)
         confidence = np.ones_like(risk)
         return risk.astype(np.int8), confidence
+
+    def predict_with_confidence_1d(
+        self,
+        state: "Solver1DState",
+        features_norm: np.ndarray,
+        steps_ahead: int = 0,
+    ) -> tuple[list[int], list[float]]:
+        # Derive risk from 1D hydraulic state
+        A = state.area
+        V = state.velocity
+        top_w = np.maximum(2.0 * np.sqrt(np.maximum(A, 1e-6)), 1e-6)
+        h = A / top_w
+        speed = np.abs(V)
+        c = np.sqrt(9.81 * np.maximum(h, 1e-9))
+        fr = speed / c
+        labels = []
+        for i in range(state.n_nodes):
+            d = float(h[i])
+            f = float(fr[i])
+            labels.append(_classify_risk_1d(d, f))
+        conf = [1.0] * len(labels)
+        return labels, conf
 
 
 # ── Linear (numpy) predictor ──────────────────────────────────────────────
@@ -125,6 +179,19 @@ class LinearFloodPredictor(FloodNetPredictorBase):
         risk = np.argmax(probs, axis=-1).reshape(state.nx, state.ny).astype(np.int8)
         conf = np.max(probs, axis=-1).reshape(state.nx, state.ny).astype(np.float32)
         return risk, conf
+
+    def predict_with_confidence_1d(
+        self,
+        state: "Solver1DState",
+        features_norm: np.ndarray,
+        steps_ahead: int = 0,
+    ) -> tuple[list[int], list[float]]:
+        """Run linear model on normalised 1D features."""
+        logits = features_norm @ self._W + self._b
+        probs = _softmax(logits)
+        labels = np.argmax(probs, axis=-1).tolist()
+        conf = np.max(probs, axis=-1).tolist()
+        return labels, conf
 
     # ── Internal ──────────────────────────────────────────────────────────
 
@@ -262,6 +329,27 @@ class TorchFloodPredictor(FloodNetPredictorBase):
             self._model.eval()
             logits = self._model(X)
         return _softmax(logits.numpy())
+
+    def predict_with_confidence_1d(
+        self,
+        state: "Solver1DState",
+        features_norm: np.ndarray,
+        steps_ahead: int = 0,
+    ) -> tuple[list[int], list[float]]:
+        if self._model is None:
+            return self._fallback.predict_with_confidence_1d(
+                state, features_norm, steps_ahead
+            )
+        import torch
+
+        X = torch.tensor(features_norm, dtype=torch.float32)
+        with torch.no_grad():
+            self._model.eval()
+            logits = self._model(X)
+        probs = _softmax(logits.numpy())
+        labels = np.argmax(probs, axis=-1).tolist()
+        conf = np.max(probs, axis=-1).tolist()
+        return labels, conf
 
 
 # ── Factory ───────────────────────────────────────────────────────────────

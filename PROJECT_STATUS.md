@@ -1,12 +1,42 @@
 # Nalarbanjir Project Status
 
 **Last updated**: 2026-05-02
-**Last commit**: f0bad06 (autonomous fixes and improvements)
-**Tests**: 316/316 passing
+**Last commit**: 790c497 (e2e example projects for 1D, 2D, 1D+2D solver modes)
+**Tests**: 333/333 passing (316 original + 17 e2e)
 
 ---
 
 ## What was done
+
+### 5. End-to-end example projects and test suite
+
+Three self-contained example projects demonstrate each solver mode with
+realistic flood scenarios:
+
+- **`examples/example_1d.py`**: 1D Preissmann implicit solver — 5 km rectangular
+  channel with triangular flood wave hydrograph upstream, fixed downstream
+  stage. Validates discharge evolution, wave attenuation, boundary conditions,
+  velocity bounds.
+
+- **`examples/example_2d.py`**: 2D FV+HLLE solver — 60×60 floodplain with
+  synthetic valley terrain, Gaussian storm cell rainfall, open boundaries.
+  Validates flooding emergence, mass conservation, terrain-aware pooling,
+  flood risk classification.
+
+- **`examples/example_1d2d.py`**: 1D+2D coupled simulation — 2 km channel
+  running through 50×50 floodplain. BankInterface maps 1D cross-section
+  nodes to adjacent 2D cells. Broad-crested weir formula computes lateral
+  exchange during peak flood when WSE exceeds bank elevation. Validates
+  both solvers finite, exchange flux reasonable, coupling active.
+
+- **`tests/test_e2e.py`**: pytest-based e2e test suite with 17 tests
+  (5 for 1D, 6 for 2D, 6 for 1D+2D) covering simulation stability,
+  state finiteness, boundary enforcement, physical bounds, and mass
+  conservation.
+
+```
+pytest tests/test_e2e.py -v  # 17 passed in 2.2s
+```
 
 ### 1. Fixed all 8 failing tests
 
@@ -99,6 +129,11 @@ cd /home/peb/code/nalarbanjir
 
 # Run tests
 python -m pytest tests/ -v
+
+# Run e2e example projects
+python examples/example_1d.py     # 1D river reach simulation
+python examples/example_2d.py     # 2D floodplain simulation
+python examples/example_1d2d.py   # 1D+2D coupled simulation
 
 # Start backend
 uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload

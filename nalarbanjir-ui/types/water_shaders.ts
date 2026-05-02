@@ -9,6 +9,8 @@
  * - Normal mapping for surface detail
  */
 
+import { Color } from 'three';
+
 // ============================================================================
 // VERTEX SHADER
 // ============================================================================
@@ -129,9 +131,9 @@ export interface WaterPreset {
     waveHeight: number;
     waveSpeed: number;
     waveFrequency: number;
-    shallowColor: THREE.Color;
-    deepColor: THREE.Color;
-    foamColor: THREE.Color;
+    shallowColor: Color;
+    deepColor: Color;
+    foamColor: Color;
     colorDepthScale: number;
     foamThreshold: number;
     reflectivity: number;
@@ -147,9 +149,9 @@ export const WATER_PRESETS: Record<string, WaterPreset> = {
         waveHeight: 0.3,
         waveSpeed: 0.5,
         waveFrequency: 0.2,
-        shallowColor: new THREE.Color(0x4a90e2),
-        deepColor: new THREE.Color(0x1a5490),
-        foamColor: new THREE.Color(0xffffff),
+        shallowColor: new Color(0x4a90e2),
+        deepColor: new Color(0x1a5490),
+        foamColor: new Color(0xffffff),
         colorDepthScale: 1.0,
         foamThreshold: 0.25,
         reflectivity: 0.3,
@@ -164,9 +166,9 @@ export const WATER_PRESETS: Record<string, WaterPreset> = {
         waveHeight: 0.8,
         waveSpeed: 1.0,
         waveFrequency: 0.3,
-        shallowColor: new THREE.Color(0x5ba3f5),
-        deepColor: new THREE.Color(0x2a6ab5),
-        foamColor: new THREE.Color(0xffffff),
+        shallowColor: new Color(0x5ba3f5),
+        deepColor: new Color(0x2a6ab5),
+        foamColor: new Color(0xffffff),
         colorDepthScale: 1.2,
         foamThreshold: 0.4,
         reflectivity: 0.4,
@@ -181,9 +183,9 @@ export const WATER_PRESETS: Record<string, WaterPreset> = {
         waveHeight: 2.0,
         waveSpeed: 2.0,
         waveFrequency: 0.5,
-        shallowColor: new THREE.Color(0x6bb6ff),
-        deepColor: new THREE.Color(0x3a7bc8),
-        foamColor: new THREE.Color(0xffffff),
+        shallowColor: new Color(0x6bb6ff),
+        deepColor: new Color(0x3a7bc8),
+        foamColor: new Color(0xffffff),
         colorDepthScale: 1.5,
         foamThreshold: 0.6,
         reflectivity: 0.5,
@@ -198,9 +200,9 @@ export const WATER_PRESETS: Record<string, WaterPreset> = {
         waveHeight: 1.5,
         waveSpeed: 1.5,
         waveFrequency: 0.4,
-        shallowColor: new THREE.Color(0x8B4513), // Brownish for muddy flood water
-        deepColor: new THREE.Color(0x4a3728),
-        foamColor: new THREE.Color(0xdcdcdc),
+        shallowColor: new Color(0x8B4513), // Brownish for muddy flood water
+        deepColor: new Color(0x4a3728),
+        foamColor: new Color(0xdcdcdc),
         colorDepthScale: 2.0,
         foamThreshold: 0.5,
         reflectivity: 0.2,
@@ -215,8 +217,3 @@ export const WATER_PRESETS: Record<string, WaterPreset> = {
 // ============================================================================
 // EXPORTS
 // ============================================================================
-
-export {
-    WATER_VERTEX_SHADER,
-    WATER_FRAGMENT_SHADER
-};
